@@ -33,8 +33,18 @@ except Exception as _exc:  # noqa: BLE001
 
 app = FastAPI(title="Trading Alpha Engine API", version="0.1.0")
 
-# Same-origin in production (Vercel serves the SPA and this API on one domain), so CORS is only
-# needed for local cross-origin dev against a deployed API. Harmless to keep permissive on GET.
+class ClearRootPathMiddleware:
+    """Vercel's ASGI adapter sometimes sets root_path, which breaks FastAPI's IncludedRouter matching."""
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            scope["root_path"] = ""
+        await self.app(scope, receive, send)
+
+app.add_middleware(ClearRootPathMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -45,7 +55,9 @@ app.add_middleware(
 _include_router_error: str | None = None
 if _router is not None:
     try:
-        app.include_router(_router)
+        # Flatten routes directly into the app to avoid _IncludedRouter ASGI root_path issues on Vercel
+        for route in _router.routes:
+            app.router.routes.append(route)
     except Exception as _inc_exc:  # noqa: BLE001
         _include_router_error = repr(_inc_exc)
 
