@@ -57,19 +57,17 @@ def health() -> dict[str, str]:
 
 @app.get("/api/debug")
 async def debug(request: Request) -> dict:
-    """Diagnostic endpoint — shows path, headers, and all registered routes."""
-    registered = []
-    for route in app.routes:
-        if hasattr(route, "path"):
-            registered.append(route.path)
+    """Diagnostic endpoint — shows path, headers, registered routes, and router contents."""
+    app_routes = [{"type": type(r).__name__, "path": getattr(r, "path", "?")} for r in app.routes]
+    router_routes = [{"type": type(r).__name__, "path": getattr(r, "path", "?")} for r in (_router.routes if _router else [])]
     return {
         "path": request.url.path,
-        "scope_path": request.scope.get("path"),
-        "registered_routes": registered,
         "import_error": _router_import_error,
         "include_router_error": _include_router_error,
         "router_is_none": _router is None,
-        "headers": {k: v for k, v in request.headers.items()},
+        "app_routes": app_routes,
+        "router_routes_count": len(router_routes),
+        "router_routes": router_routes,
     }
 
 
