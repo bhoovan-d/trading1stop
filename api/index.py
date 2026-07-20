@@ -28,28 +28,33 @@ from alpha_engine.api.routes import router  # noqa: E402
 app = FastAPI(title="Trading Alpha Engine API", version="0.1.0")
 
 
-@app.middleware("http")
-async def fix_vercel_rewrites(request: Request, call_next):
-    # Vercel rewrites /api/(.*) to /api/index.
-    # Check Vercel headers in order of path specificity:
-    # 1. x-invoke-path (Vercel serverless function invocation path)
-    # 2. x-forwarded-uri / x-original-url (Client requested path)
-    # 3. x-matched-path (only if distinct from the rewrite target /api/index)
-    matched_path = (
-        request.headers.get("x-invoke-path")
-        or request.headers.get("x-forwarded-uri")
-        or request.headers.get("x-original-url")
-    )
-    if not matched_path:
-        mp = request.headers.get("x-matched-path")
-        if mp and mp not in ("/api/index", "/api/index.py"):
-            matched_path = mp
+class VercelRewriteMiddleware:
+    def __init__(self, app):
+        self.app = app
 
-    if matched_path:
-        request.scope["path"] = matched_path.split("?")[0]
-    elif request.url.path in ("/api", "/api/", "/api/index"):
-        request.scope["path"] = "/api/health"
-    return await call_next(request)
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            headers = dict(scope.get("headers", []))
+            matched_path = (
+                headers.get(b"x-invoke-path")
+                or headers.get(b"x-forwarded-uri")
+                or headers.get(b"x-original-url")
+            )
+            if not matched_path:
+                mp = headers.get(b"x-matched-path")
+                if mp and mp not in (b"/api/index", b"/api/index.py"):
+                    matched_path = mp
+
+            if matched_path:
+                scope["path"] = matched_path.decode("utf-8").split("?")[0]
+            elif scope["path"] in ("/api", "/api/", "/api/index"):
+                scope["path"] = "/api/health"
+
+        await self.app(scope, receive, send)
+
+
+app.add_middleware(VercelRewriteMiddleware)
+
 
 
 
