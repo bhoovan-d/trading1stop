@@ -42,8 +42,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+_include_router_error: str | None = None
 if _router is not None:
-    app.include_router(_router)
+    try:
+        app.include_router(_router)
+    except Exception as _inc_exc:  # noqa: BLE001
+        _include_router_error = repr(_inc_exc)
 
 
 @app.get("/api/health")
@@ -63,6 +67,8 @@ async def debug(request: Request) -> dict:
         "scope_path": request.scope.get("path"),
         "registered_routes": registered,
         "import_error": _router_import_error,
+        "include_router_error": _include_router_error,
+        "router_is_none": _router is None,
         "headers": {k: v for k, v in request.headers.items()},
     }
 
