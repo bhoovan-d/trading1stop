@@ -6,8 +6,9 @@ app: it exposes the same ``/api/*`` router the local server uses, but does NOT m
 Actions pipeline owns the schema via ``alpha-engine init-db``). Keeping generation/ingestion out of
 the import path is what lets this function stay small — see requirements.txt.
 
-Routing: vercel.json rewrites ``/api/(.*)`` here; FastAPI keeps its own ``/api`` prefix and matches
-the original request path.
+Routing: vercel.json rewrites ``/api/(.*)`` here; Vercel preserves the original request path (e.g.
+/api/insights, /api/meta) in the ASGI scope — FastAPI routes against those paths directly.
+No path-mangling middleware is needed.
 """
 
 from __future__ import annotations
@@ -27,37 +28,6 @@ from alpha_engine.api.routes import router  # noqa: E402
 
 app = FastAPI(title="Trading Alpha Engine API", version="0.1.0")
 
-
-class VercelRewriteMiddleware:
-    def __init__(self, app):
-        self.app = app
-
-    async def __call__(self, scope, receive, send):
-        if scope["type"] == "http":
-            headers = dict(scope.get("headers", []))
-            matched_path = (
-                headers.get(b"x-invoke-path")
-                or headers.get(b"x-forwarded-uri")
-                or headers.get(b"x-original-url")
-            )
-            if not matched_path:
-                mp = headers.get(b"x-matched-path")
-                if mp and mp not in (b"/api/index", b"/api/index.py"):
-                    matched_path = mp
-
-            if matched_path:
-                scope["path"] = matched_path.decode("utf-8").split("?")[0]
-            elif scope["path"] in ("/api", "/api/", "/api/index"):
-                scope["path"] = "/api/health"
-
-        await self.app(scope, receive, send)
-
-
-app.add_middleware(VercelRewriteMiddleware)
-
-
-
-
 # Same-origin in production (Vercel serves the SPA and this API on one domain), so CORS is only
 # needed for local cross-origin dev against a deployed API. Harmless to keep permissive on GET.
 app.add_middleware(
@@ -67,18 +37,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(router)
+
 
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/api")
-@app.get("/api/")
-@app.get("/api/index")
-def api_root() -> dict[str, str]:
-    return {"status": "ok"}
-
-
-app.include_router(router)
+@app.get("/api/debug")
+async def debug(request: Request) -> dict:  # type: ignore[name-defined]
+    """Diagnostic endpoint — reveals the raw path and headers Vercel sends to this function."""
+    from fastapi import Request as Req  # noqa: F401
+    return {
+        "path": request.url.path,
+        "raw_path": request.scope.get("path"),
+        "headers": dict(request.headers),
+    }
 
