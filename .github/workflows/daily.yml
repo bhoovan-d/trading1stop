@@ -1,0 +1,48 @@
+name: Daily pipeline
+
+# Runs the full ingest → synthesize → newsletter pipeline once a day against Supabase.
+# This lives on GitHub Actions (not Vercel) because a real run takes several minutes with
+# rate-limited free LLM tiers — well past Vercel's serverless function time limit. Vercel only
+# serves the SPA + read API; this job is what populates the database each day.
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # 06:00 UTC daily
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+concurrency:
+  group: daily-pipeline
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Apply schema migrations
+        run: uv run alpha-engine init-db
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Run pipeline (ingest → synthesize → newsletter)
+        run: uv run alpha-engine run-once
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # LLM providers (configure whichever keys you have; the cascade skips unset ones)
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SAMBANOVA_API_KEY: ${{ secrets.SAMBANOVA_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Ingestion sources
+          GITHUB_TOKEN: ${{ secrets.GH_INGEST_TOKEN }}
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}

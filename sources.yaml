@@ -1,0 +1,193 @@
+# ─── Trading Alpha Engine — ingestion targets ──────────────────────────────────
+# Edit this file to retarget the engine. No code changes required.
+# All feeds/repos below were verified reachable. Add your own freely.
+
+github:
+  # What to pull from each repo: any of [commits, releases]
+  track: [commits, releases]
+  repos:
+    # Backtesting / execution frameworks
+    - polakowo/vectorbt
+    - kernc/backtesting.py
+    - QuantConnect/Lean
+    - freqtrade/freqtrade
+    - mementum/backtrader
+    - hummingbot/hummingbot            # execution / market-making infra
+    - jesse-ai/jesse                   # crypto algotrading
+    # AI / Agentic frameworks
+    - AI4Finance-Foundation/FinRL
+    - AI4Finance-Foundation/FinGPT
+    - AI4Finance-Foundation/FinRobot
+    - microsoft/qlib
+    - microsoft/RD-Agent               # autonomous R&D / quant research agent
+    - microsoft/autogen
+    - langchain-ai/langgraph
+    - crewAIInc/crewAI
+    # ML forecasting / research
+    - stefan-jansen/machine-learning-for-trading
+    - nixtla/neuralforecast
+    - nixtla/statsforecast
+    - amazon-science/chronos-forecasting
+    - google-research/timesfm
+    - time-series-foundation-models/lag-llama
+    # Portfolio construction / risk
+    - robertmartin8/PyPortfolioOpt
+    - skfolio/skfolio
+    # Production-grade trading and agentic research
+    - nautechsystems/nautilus_trader
+    - hftbacktest/hftbacktest             # order-book / queue-position backtesting
+    - vnpy/vnpy                           # live execution and CTA infrastructure
+    - TauricResearch/TradingAgents
+    # Research platform
+    - OpenBB-finance/OpenBB
+
+reddit:
+  # Credential-free: pulled via Reddit's public subreddit RSS (no OAuth/app needed).
+  # This is a COMMUNITY-stream source (discussion), held to a lower relevance bar.
+  # r/quantconnect covers the QuantConnect community; r/algotrading covers freqtrade/crypto.
+  subreddits:
+    - algotrading
+    - quant
+    - quantconnect
+    - quantfinance
+  listing: top          # top | hot | new
+  time_filter: week     # for "top": hour | day | week | month | year | all
+  min_score: 0          # (only applies to the optional PRAW path; RSS has no score)
+
+rss:
+  # Verified free feeds. arXiv q-fin = high-signal research; release feeds catch framework
+  # capabilities; the blogs are active quant/AI-in-trading builders. Add more freely.
+  feeds:
+    # NOTE: Reddit now has its own credential-free adapter (see the `reddit:` section) —
+    # it's a community source, kept separate from these alpha-stream research/release feeds.
+    # Research (arXiv quant-finance)
+    - name: "arXiv q-fin.TR (Trading & Market Microstructure)"
+      url: "http://export.arxiv.org/rss/q-fin.TR"
+    - name: "arXiv q-fin.CP (Computational Finance)"
+      url: "http://export.arxiv.org/rss/q-fin.CP"
+    - name: "arXiv q-fin.RM (Risk Management)"
+      url: "http://export.arxiv.org/rss/q-fin.RM"
+    - name: "arXiv q-fin.PM (Portfolio Management)"
+      url: "http://export.arxiv.org/rss/q-fin.PM"
+    - name: "arXiv q-fin.ST (Statistical Finance)"
+      url: "http://export.arxiv.org/rss/q-fin.ST"
+    - name: "arXiv econ.EM (Econometrics)"
+      url: "http://export.arxiv.org/rss/econ.EM"
+    # Framework release streams
+    - name: "freqtrade releases"
+      url: "https://github.com/freqtrade/freqtrade/releases.atom"
+    - name: "QuantConnect Lean releases"
+      url: "https://github.com/QuantConnect/Lean/releases.atom"
+    - name: "qlib releases"
+      url: "https://github.com/microsoft/qlib/releases.atom"
+    - name: "RD-Agent releases"
+      url: "https://github.com/microsoft/RD-Agent/releases.atom"
+    # Quant-firm engineering blogs (what top firms are building internally)
+    - name: "Jane Street Tech Blog"
+      url: "https://blog.janestreet.com/feed.xml"
+    # Builder / quant blogs
+    - name: "Hudson & Thames"
+      url: "https://hudsonthames.org/feed/"
+    - name: "Robot Wealth"
+      url: "https://robotwealth.com/feed/"
+    - name: "QuantInsti"
+      url: "https://blog.quantinsti.com/feed/"
+    - name: "Dean Markwick"
+      url: "https://dm13450.github.io/feed.xml"
+    # Builders / specialist media
+    - name: "Quantitativo"
+      url: "https://quantitativo.substack.com/feed"
+    - name: "The Quant's Playbook"
+      url: "https://www.quant-galore.com/feed"
+    # Data / execution infrastructure vendors
+    - name: "Databento"
+      url: "https://databento.com/blog/rss.xml"
+    - name: "Alpaca Markets"
+      url: "https://alpaca.markets/blog/feed"
+    - name: "IBKR Quant"
+      url: "https://www.interactivebrokers.com/campus/category/ibkr-quant-news/feed/"
+    - name: "NautilusTrader releases"
+      url: "https://github.com/nautechsystems/nautilus_trader/releases.atom"
+    # High-signal developer discussion, filtered at the source by topic.
+    - name: "Hacker News: algorithmic trading"
+      url: "https://hnrss.org/newest?q=algorithmic%20trading"
+    - name: "Hacker News: quant"
+      url: "https://hnrss.org/newest?q=quant%20finance"
+
+forums:
+  # COMMUNITY-stream source. QuantConnect has a dedicated scraper (newest threads via
+  # last-page discovery); any other forum here uses a generic RSS-then-HTML fallback.
+  # A source that fails to parse is skipped, not fatal.
+  # NOTE: Freqtrade was removed — its GitHub Discussions are disabled and its community is
+  # Discord-gated (no free API). Freqtrade/crypto discussion is covered via r/algotrading,
+  # and its engineering via the freqtrade release feed + GitHub commits.
+  - name: "QuantConnect Community"
+    type: html
+    url: "https://www.quantconnect.com/forum/discussions"
+
+mcp:
+  # Discover Model Context Protocol servers built for market data (GitHub search).
+  github_search_queries:
+    - "market data mcp server"
+    - "model context protocol trading"
+    - "mcp server stocks OR crypto OR market-data"
+    - "sec filings mcp server"
+    - "portfolio optimization mcp"
+    - "financial research agent mcp"
+    - "limit order book market microstructure trading language:Python"
+    - "earnings call financial NLP agent language:Python"
+    - "macro forecasting trading machine learning language:Python"
+    - "SEC filing analysis agent language:Python"
+
+bluesky:
+  # Credential-free public search. Community stream; the LLM still filters for technical signal.
+  enabled: true
+  queries:
+    - "quant finance"
+    - "algorithmic trading"
+    - "portfolio optimization"
+    - "financial NLP"
+    - "time-series forecasting"
+    - "AI investment research"
+
+numerai:
+  # Public tournament snapshots and newest forum topics. This stays in the alpha stream.
+  enabled: true
+  forum_url: "https://forum.numer.ai"
+  api_url: "https://api-tournament.numer.ai"
+  leaderboard_size: 5
+
+stocktwits:
+  # Optional Firestream integration. Enable only with provisioned environment credentials.
+  enabled: false
+  symbols: [SPY, QQQ, NVDA, BTC]
+  max_messages: 25
+  poll_seconds: 10
+
+twitter:
+  # Stubbed. Adapter stays disabled unless TWITTER_ENABLED=true AND a bearer token is set.
+  enabled: false
+  handles:
+    # - some_builder
+    # - another_quant_dev
+
+careers:
+  # ALPHA-stream source. Public applicant-tracking-system job boards for top quant / HFT firms —
+  # what they're building and hiring for. Each posting is scored by the LLM under the
+  # "Quant Firms" category (routine listings are filtered; team build-outs / tech-stack signals
+  # survive). `ats` is one of greenhouse | lever | ashby; `token` is the firm's public board slug.
+  # Tokens below were verified live (2026-07); add lever/ashby firms the same way.
+  enabled: true
+  firms:
+    - { firm: "Jane Street", ats: greenhouse, token: janestreet }
+    - { firm: "Jump Trading", ats: greenhouse, token: jumptrading }
+    - { firm: "DRW", ats: greenhouse, token: drweng }
+    - { firm: "IMC Trading", ats: greenhouse, token: imc }
+    - { firm: "Tower Research Capital", ats: greenhouse, token: towerresearchcapital }
+    - { firm: "Akuna Capital", ats: greenhouse, token: akunacapital }
+    - { firm: "Old Mission", ats: greenhouse, token: oldmissioncapital }
+    - { firm: "Flow Traders", ats: greenhouse, token: flowtraders }
+    - { firm: "Virtu Financial", ats: greenhouse, token: virtu }
+    - { firm: "Qube Research & Technologies", ats: greenhouse, token: quberesearchandtechnologies }
+    - { firm: "PDT Partners", ats: greenhouse, token: pdtpartners }
+    - { firm: "Point72 / Cubist", ats: greenhouse, token: point72 }

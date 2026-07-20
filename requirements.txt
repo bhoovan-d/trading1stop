@@ -1,0 +1,12 @@
+# Slim dependency set for the Vercel serverless READ API (api/index.py) ONLY.
+# The read path imports just these — see api/index.py. The full pipeline (ingest/synthesize:
+# openai, anthropic, PyGithub, praw, feedparser, APScheduler, typer, …) runs on GitHub Actions
+# from pyproject.toml/uv, NOT here, so those libs are deliberately excluded to keep the function
+# small and cold-starts fast. This file does not affect local dev or Docker (both use uv/pyproject).
+fastapi>=0.111
+sqlmodel>=0.0.22
+pydantic>=2.7
+pydantic-settings>=2.3
+psycopg2-binary>=2.9
+PyYAML>=6.0
+loguru>=0.7

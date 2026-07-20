@@ -1,0 +1,19 @@
+# Keep the Vercel deployment/function bundle small. src/** IS needed (bundled via
+# vercel.json includeFiles), so it is intentionally NOT ignored here.
+.venv/
+.uv-cache/
+.pytest_cache/
+**/__pycache__/
+data/
+*.db
+*.db.bak-*
+tests/
+.git/
+.github/
+.claude/
+.agents/
+.impeccable/
+Dockerfile
+.dockerignore
+frontend/node_modules/
+frontend/dist/

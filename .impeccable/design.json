@@ -1,0 +1,228 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-18T00:00:00Z",
+  "title": "Design System: Trading Alpha Engine",
+  "extensions": {
+    "colorMeta": {
+      "accent": {
+        "role": "primary",
+        "displayName": "Poppy Coral",
+        "canonical": "oklch(0.64 0.17 35)",
+        "tonalRamp": [
+          "oklch(0.32 0.11 34)",
+          "oklch(0.4 0.13 34)",
+          "oklch(0.5 0.15 34)",
+          "oklch(0.58 0.165 35)",
+          "oklch(0.64 0.17 35)",
+          "oklch(0.74 0.13 37)",
+          "oklch(0.85 0.07 40)",
+          "oklch(0.93 0.03 40)"
+        ]
+      },
+      "cat-agentic": {
+        "role": "secondary",
+        "displayName": "Muted Plum",
+        "canonical": "oklch(0.52 0.13 300)",
+        "tonalRamp": [
+          "oklch(0.28 0.09 300)",
+          "oklch(0.4 0.12 300)",
+          "oklch(0.52 0.13 300)",
+          "oklch(0.63 0.12 300)",
+          "oklch(0.73 0.1 300)",
+          "oklch(0.83 0.07 300)",
+          "oklch(0.91 0.04 300)",
+          "oklch(0.96 0.02 300)"
+        ]
+      },
+      "cat-ml": {
+        "role": "secondary",
+        "displayName": "Slate Teal",
+        "canonical": "oklch(0.52 0.1 235)",
+        "tonalRamp": [
+          "oklch(0.28 0.07 235)",
+          "oklch(0.4 0.09 235)",
+          "oklch(0.52 0.1 235)",
+          "oklch(0.63 0.095 235)",
+          "oklch(0.73 0.08 235)",
+          "oklch(0.83 0.055 235)",
+          "oklch(0.91 0.03 235)",
+          "oklch(0.96 0.015 235)"
+        ]
+      },
+      "cat-risk": {
+        "role": "secondary",
+        "displayName": "Deep Berry",
+        "canonical": "oklch(0.48 0.13 8)",
+        "tonalRamp": [
+          "oklch(0.28 0.1 8)",
+          "oklch(0.38 0.12 8)",
+          "oklch(0.48 0.13 8)",
+          "oklch(0.6 0.14 10)",
+          "oklch(0.7 0.12 12)",
+          "oklch(0.81 0.08 14)",
+          "oklch(0.9 0.045 16)",
+          "oklch(0.95 0.02 18)"
+        ]
+      },
+      "cat-infra": {
+        "role": "secondary",
+        "displayName": "Ochre",
+        "canonical": "oklch(0.56 0.09 75)",
+        "tonalRamp": [
+          "oklch(0.32 0.06 75)",
+          "oklch(0.44 0.08 75)",
+          "oklch(0.56 0.09 75)",
+          "oklch(0.67 0.09 75)",
+          "oklch(0.77 0.08 75)",
+          "oklch(0.86 0.06 75)",
+          "oklch(0.92 0.035 75)",
+          "oklch(0.96 0.02 75)"
+        ]
+      },
+      "bg": {
+        "role": "neutral",
+        "displayName": "Warm Paper",
+        "canonical": "oklch(0.985 0.006 70)",
+        "tonalRamp": [
+          "oklch(0.26 0.012 60)",
+          "oklch(0.44 0.012 60)",
+          "oklch(0.52 0.012 60)",
+          "oklch(0.83 0.01 70)",
+          "oklch(0.9 0.008 70)",
+          "oklch(0.965 0.008 70)",
+          "oklch(0.985 0.006 70)",
+          "oklch(1 0 0)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Newsletter masthead H1 and the 'The Alpha Feed' feed masthead. Fraunces 30px, opsz 64. Largest type." },
+      "headline": { "displayName": "Headline", "purpose": "Page titles (Community heading). Fraunces 24px, opsz 40." },
+      "title": { "displayName": "Title", "purpose": "Insight card + newsletter item titles. Fraunces 20px, opsz 34." },
+      "reading": { "displayName": "Reading", "purpose": "Newsletter long-form body. Fraunces 17px/1.7, <=68ch." },
+      "body": { "displayName": "Body", "purpose": "Card summaries and UI prose. Inter 14px, muted, <=68ch." },
+      "data": { "displayName": "Data", "purpose": "Scores, dates, sources, counts, category tags. Tabular mono 11px; the score number is the loudest data — mono 700 at 1.6rem/26px with a 9px '/ 10' denominator." },
+      "label": { "displayName": "Label", "purpose": "Kickers, section labels, filter micro-labels. Inter uppercase, tracked." }
+    },
+    "shadows": [
+      { "name": "shadow-sm", "value": "0 1px 2px oklch(0.26 0.012 60 / 0.05), 0 1px 3px oklch(0.26 0.012 60 / 0.05)", "purpose": "Inputs, pagination, brand tile — a hairline of lift." },
+      { "name": "shadow-md", "value": "0 2px 4px oklch(0.26 0.012 60 / 0.05), 0 6px 16px oklch(0.26 0.012 60 / 0.07)", "purpose": "Insight cards and the reading surface at rest." },
+      { "name": "shadow-lg", "value": "0 12px 32px oklch(0.26 0.012 60 / 0.1), 0 3px 8px oklch(0.26 0.012 60 / 0.06)", "purpose": "Card hover and popovers, paired with a 2px upward translate." }
+    ],
+    "motion": [
+      { "name": "ease-out-quint", "value": "cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "Card entrance and hover lift; the system's signature easing." },
+      { "name": "transition-state", "value": "150ms", "purpose": "Color/border state changes on buttons, pills, nav, inputs." },
+      { "name": "transition-card", "value": "200ms", "purpose": "Insight card hover lift (shadow + transform)." },
+      { "name": "rise", "value": "@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }", "purpose": "Staggered card entrance, 0.4s, delay = min(index,12)*28ms per card." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "content-max", "value": "56rem" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Insight Card",
+      "kind": "card",
+      "refersTo": "card-insight",
+      "description": "The signature feed unit: a 56px score chip (score is the product — number in mono 700 at 1.6rem; fill scales with score so 9-10 wears the strongest tint) beside metadata, a 20px serif linked title, summary, and impact line. Lifts on hover.",
+      "html": "<article class=\"ds-card\"><div class=\"ds-card-row\"><div class=\"ds-score\" title=\"Relevance 9/10\"><span class=\"ds-score-n\">9</span><span class=\"ds-score-d\">/ 10</span></div><div class=\"ds-card-body\"><div class=\"ds-meta\"><span class=\"ds-chip\">Applied ML</span><span class=\"ds-src\">GitHub</span><span class=\"ds-src\">· Jul 12, 2026</span></div><h3 class=\"ds-title\"><a href=\"#\">Transformer-based limit-order-book forecasting beats GRU baselines</a></h3><p class=\"ds-summary\">A reproducible study fine-tuning a compact attention model on level-2 book snapshots, with open weights and a backtest harness.</p><p class=\"ds-impact\"><span class=\"ds-kicker\">Why it matters</span>Drop-in signal for microstructure desks; the harness makes live A/B feasible within a day.</p></div></div></article>",
+      "css": ".ds-card { background: var(--color-surface, #fff); border: 1px solid var(--color-border, oklch(0.9 0.008 70)); border-radius: 14px; padding: 20px; box-shadow: 0 2px 4px oklch(0.26 0.012 60 / 0.05), 0 6px 16px oklch(0.26 0.012 60 / 0.07); transition: box-shadow 200ms cubic-bezier(0.22,1,0.36,1), transform 200ms cubic-bezier(0.22,1,0.36,1), border-color 200ms; } .ds-card:hover { transform: translateY(-2px); border-color: var(--color-border-strong, oklch(0.83 0.01 70)); box-shadow: 0 12px 32px oklch(0.26 0.012 60 / 0.1), 0 3px 8px oklch(0.26 0.012 60 / 0.06); } .ds-card-row { display: flex; gap: 16px; } .ds-score { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 56px; width: 56px; flex-shrink: 0; border-radius: 10px; font-family: ui-monospace, Menlo, monospace; line-height: 1; color: color-mix(in oklab, var(--color-accent, oklch(0.64 0.17 35)) 72%, var(--color-ink, oklch(0.26 0.012 60))); background: color-mix(in oklab, var(--color-accent, oklch(0.64 0.17 35)) 22%, var(--color-surface, #fff)); border: 1px solid color-mix(in oklab, var(--color-accent, oklch(0.64 0.17 35)) 52%, transparent); } .ds-score-n { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; } .ds-score-d { font-size: 9px; color: var(--color-faint, oklch(0.52 0.012 60)); } .ds-card-body { min-width: 0; flex: 1; } .ds-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-bottom: 8px; } .ds-chip { font-family: ui-monospace, Menlo, monospace; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; border-radius: 9999px; padding: 2px 10px; color: var(--color-cat-ml, oklch(0.52 0.1 235)); background: color-mix(in oklab, var(--color-cat-ml, oklch(0.52 0.1 235)) 13%, var(--color-surface, #fff)); border: 1px solid color-mix(in oklab, var(--color-cat-ml, oklch(0.52 0.1 235)) 36%, transparent); } .ds-src { font-family: ui-monospace, Menlo, monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-faint, oklch(0.52 0.012 60)); } .ds-title { font-family: 'Fraunces Variable', Fraunces, Georgia, serif; font-variation-settings: 'opsz' 34; font-size: 20px; font-weight: 600; line-height: 1.35; margin: 0; overflow-wrap: anywhere; color: var(--color-ink, oklch(0.26 0.012 60)); } .ds-title a { color: inherit; text-decoration: none; text-underline-offset: 4px; transition: color 150ms; } .ds-title a:hover { color: var(--color-accent-dim, oklch(0.5 0.15 34)); text-decoration: underline; } .ds-summary { margin: 8px 0 0; max-width: 68ch; font-family: 'Inter Variable', Inter, system-ui, sans-serif; font-size: 14px; line-height: 1.6; color: var(--color-muted, oklch(0.44 0.012 60)); } .ds-impact { margin: 12px 0 0; max-width: 68ch; font-family: 'Inter Variable', Inter, system-ui, sans-serif; font-size: 13.5px; line-height: 1.6; color: var(--color-muted, oklch(0.44 0.012 60)); } .ds-kicker { margin-right: 6px; font-family: 'Inter Variable', Inter, system-ui, sans-serif; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-accent-dim, oklch(0.5 0.15 34)); }"
+    },
+    {
+      "name": "Filter Pill",
+      "kind": "chip",
+      "refersTo": "pill",
+      "description": "Toggleable filter chip. White ghost when unselected; tint fill + deep-hue text when selected.",
+      "html": "<div style=\"display:flex; gap:6px\"><button class=\"ds-pill\">All</button><button class=\"ds-pill ds-pill-selected\">Applied ML</button></div>",
+      "css": ".ds-pill { border-radius: 9999px; border: 1px solid var(--color-border, oklch(0.9 0.008 70)); padding: 4px 12px; font-family: 'Inter Variable', Inter, system-ui, sans-serif; font-size: 12px; font-weight: 500; color: var(--color-muted, oklch(0.44 0.012 60)); background: var(--color-surface, #fff); cursor: pointer; transition: color 150ms, background 150ms, border-color 150ms; } .ds-pill:hover { border-color: var(--color-border-strong, oklch(0.83 0.01 70)); } .ds-pill-selected { color: var(--color-accent-dim, oklch(0.5 0.15 34)); background: color-mix(in oklab, var(--color-accent-dim, oklch(0.5 0.15 34)) 12%, var(--color-surface, #fff)); border-color: color-mix(in oklab, var(--color-accent-dim, oklch(0.5 0.15 34)) 40%, transparent); }"
+    },
+    {
+      "name": "Search Input",
+      "kind": "input",
+      "refersTo": "input-search",
+      "description": "Debounced search field with inline magnifier; soft shadow, border shifts to deep coral on focus.",
+      "html": "<div class=\"ds-search-wrap\"><svg class=\"ds-search-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"11\" cy=\"11\" r=\"7\"></circle><path d=\"m21 21-4.3-4.3\"></path></svg><input class=\"ds-search\" placeholder=\"Search summaries, impact, titles…\" aria-label=\"Search insights\"></div>",
+      "css": ".ds-search-wrap { position: relative; } .ds-search-icon { position: absolute; left: 12px; top: 50%; height: 16px; width: 16px; transform: translateY(-50%); color: var(--color-faint, oklch(0.52 0.012 60)); pointer-events: none; } .ds-search { width: 100%; box-sizing: border-box; border-radius: 10px; border: 1px solid var(--color-border, oklch(0.9 0.008 70)); background: var(--color-surface, #fff); padding: 8px 12px 8px 36px; font-family: 'Inter Variable', Inter, system-ui, sans-serif; font-size: 14px; color: var(--color-ink, oklch(0.26 0.012 60)); box-shadow: 0 1px 2px oklch(0.26 0.012 60 / 0.05); outline: none; transition: border-color 150ms; } .ds-search::placeholder { color: var(--color-faint, oklch(0.52 0.012 60)); } .ds-search:focus { border-color: var(--color-accent-dim, oklch(0.5 0.15 34)); }"
+    },
+    {
+      "name": "Nav Item",
+      "kind": "nav",
+      "refersTo": "button-nav",
+      "description": "Inter sentence-case nav link; coral-tint pill when active.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item ds-nav-active\" href=\"#\">Feed</a><a class=\"ds-nav-item\" href=\"#\">Community</a><a class=\"ds-nav-item\" href=\"#\">Newsletter</a></nav>",
+      "css": ".ds-nav { display: flex; gap: 4px; } .ds-nav-item { border-radius: 10px; padding: 6px 12px; font-family: 'Inter Variable', Inter, system-ui, sans-serif; font-size: 14px; font-weight: 500; color: var(--color-muted, oklch(0.44 0.012 60)); text-decoration: none; transition: color 150ms, background 150ms; } .ds-nav-item:hover { color: var(--color-ink, oklch(0.26 0.012 60)); } .ds-nav-active { background: var(--color-accent-tint, oklch(0.93 0.03 40)); color: var(--color-accent-dim, oklch(0.5 0.15 34)); }"
+    },
+    {
+      "name": "Brand Mark",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "The alpha tile + serif wordmark. Coral tile with warm-white glyph.",
+      "html": "<div class=\"ds-brand\"><span class=\"ds-brand-tile\">α</span><span class=\"ds-brand-word\">Trading Alpha Engine</span></div>",
+      "css": ".ds-brand { display: flex; align-items: center; gap: 12px; } .ds-brand-tile { display: grid; place-items: center; height: 40px; width: 40px; border-radius: 10px; font-family: 'Fraunces Variable', Fraunces, Georgia, serif; font-size: 20px; font-weight: 600; color: var(--color-accent-ink, oklch(0.99 0.005 70)); background: var(--color-accent, oklch(0.64 0.17 35)); box-shadow: 0 1px 2px oklch(0.26 0.012 60 / 0.05); } .ds-brand-word { font-family: 'Fraunces Variable', Fraunces, Georgia, serif; font-variation-settings: 'opsz' 36; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; color: var(--color-ink, oklch(0.26 0.012 60)); white-space: nowrap; }"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "A grouped toggle for a small set of mutually-exclusive options (sort Top/Newest, minimum score, timeframe presets). Hairline-bordered container on shadow-sm; the active segment is a coral-tint inset pill (accent-tint fill + accent-dim text), inactive segments are muted → ink on hover. Unifies the filter vocabulary and replaces native <select>.",
+      "html": "<div class=\"ds-seg\" role=\"group\" aria-label=\"Minimum score\"><button class=\"ds-seg-b ds-seg-on\">Any</button><button class=\"ds-seg-b\">7+</button><button class=\"ds-seg-b\">8+</button><button class=\"ds-seg-b\">9+</button><button class=\"ds-seg-b\">10</button></div>",
+      "css": ".ds-seg { display: inline-flex; align-items: center; gap: 0; border-radius: 10px; border: 1px solid var(--color-border, oklch(0.9 0.008 70)); background: var(--color-surface, #fff); padding: 2px; box-shadow: 0 1px 2px oklch(0.26 0.012 60 / 0.05); } .ds-seg-b { border: 0; background: none; border-radius: 7px; padding: 4px 10px; font-family: 'Inter Variable', Inter, system-ui, sans-serif; font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--color-muted, oklch(0.44 0.012 60)); cursor: pointer; transition: color 150ms, background 150ms; } .ds-seg-b:hover { color: var(--color-ink, oklch(0.26 0.012 60)); } .ds-seg-on, .ds-seg-on:hover { background: var(--color-accent-tint, oklch(0.93 0.03 40)); color: var(--color-accent-dim, oklch(0.5 0.15 34)); }"
+    },
+    {
+      "name": "Filters Popover",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Progressive-disclosure filter panel: a 'Filters' button (with an accent-tint count badge for active secondary filters) opens a white card of secondary controls (score segmented, source pills, timeframe segmented). Portaled to <body> so the sticky bar's backdrop-blur can't clip it; anchored below-right of the trigger, viewport-clamped, shadow-lg, lg radius. Esc / outside-click dismiss, focus returns to the trigger; rise entrance (disabled under prefers-reduced-motion).",
+      "html": "<button class=\"ds-filt\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M3 5h18M6 12h12M10 19h4\"/></svg>Filters<span class=\"ds-filt-badge\">1</span></button>",
+      "css": ".ds-filt { display: inline-flex; align-items: center; gap: 6px; border-radius: 10px; border: 1px solid var(--color-border, oklch(0.9 0.008 70)); background: var(--color-surface, #fff); padding: 10px 12px; font-family: 'Inter Variable', Inter, system-ui, sans-serif; font-size: 12px; font-weight: 500; color: var(--color-muted, oklch(0.44 0.012 60)); box-shadow: 0 1px 2px oklch(0.26 0.012 60 / 0.05); cursor: pointer; } .ds-filt:hover { color: var(--color-ink, oklch(0.26 0.012 60)); border-color: var(--color-border-strong, oklch(0.83 0.01 70)); } .ds-filt-badge { display: grid; place-items: center; height: 16px; min-width: 16px; padding: 0 4px; border-radius: 9999px; background: var(--color-accent-tint, oklch(0.93 0.03 40)); font-family: ui-monospace, Menlo, monospace; font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-accent-dim, oklch(0.5 0.15 34)); }"
+    },
+    {
+      "name": "Empty State",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Dashed-border teaching state; serif title, mono hint (often a CLI command).",
+      "html": "<div class=\"ds-empty\"><p class=\"ds-empty-title\">No insights match</p><p class=\"ds-empty-body\">Run the pipeline to populate the feed.</p></div>",
+      "css": ".ds-empty { border-radius: 14px; border: 1px dashed var(--color-border-strong, oklch(0.83 0.01 70)); background: var(--color-surface, #fff); padding: 64px 24px; text-align: center; box-shadow: 0 1px 2px oklch(0.26 0.012 60 / 0.05); } .ds-empty-title { margin: 0; font-family: 'Fraunces Variable', Fraunces, Georgia, serif; font-variation-settings: 'opsz' 32; font-size: 18px; font-weight: 600; color: var(--color-ink, oklch(0.26 0.012 60)); } .ds-empty-body { margin: 6px 0 0; font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--color-faint, oklch(0.52 0.012 60)); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "First Light",
+    "overview": "Trading Alpha Engine is the calm, premium thing you open with your morning coffee — a well-made daily broadsheet on how AI and ML are reshaping the trading process, not a blinking terminal. Barely-warm off-white paper, pure-white cards that lift on soft warm shadows, one friendly poppy-coral accent that marks what's live, and a Fraunces-serif / Inter-sans pairing. Warmth is earned by the accent, the serif, and the shadows — never by tinting the body background toward cream, which is the saturated AI-generated default this redesign exists to escape.",
+    "keyCharacteristics": [
+      "Barely-warm off-white paper (bg, OKLCH L0.985 C0.006); pure-white cards above it.",
+      "Depth from soft warm shadows, not borders-as-decoration or flat tonal steps.",
+      "One poppy-coral accent, used sparingly — active nav, links, high scores, the brand mark.",
+      "Fraunces serif for display + reading; Inter for UI; tabular mono for data.",
+      "A four-hue category index (agentic / ML / risk / infra), muted for a light surface.",
+      "Fixed rem type scale (no clamp()); comfortable reading measures (<=68-70ch)."
+    ],
+    "rules": [
+      { "name": "The One Voice Rule", "body": "Coral appears on <=10% of any screen — brand mark, current selection, links, high scores. Use Deep Coral (accent-dim) for anything that is text on white. Its rarity is what makes a live signal read as live.", "section": "colors" },
+      { "name": "The Earned-Warmth Rule", "body": "Warmth comes from the accent, the serif, and the shadows — never from tinting the body toward cream. The paper stays at chroma ~0.006. If the background reads as beige/sand/parchment, the chroma is too high.", "section": "colors" },
+      { "name": "The Two-Reds Rule", "body": "The Deep Berry risk hue and the Poppy Coral accent must stay visibly distinct — berry is darker and cooler (hue 8 vs 35). Never let a risk chip drift toward the accent's brightness.", "section": "colors" },
+      { "name": "The Read-in-Serif Rule", "body": "Long-form newsletter prose is set in Fraunces at 17px/1.7 — it is meant to be read. UI micro-copy and card summaries stay in Inter; don't set working UI in the serif.", "section": "typography" },
+      { "name": "The Fixed-Scale Rule", "body": "No clamp(), no fluid headings. Sizes are a fixed rem ramp so a title in a narrow card and one in a wide column read at the same weight.", "section": "typography" },
+      { "name": "The Warm-Shadow Rule", "body": "All shadows are tinted with the ink hue (oklch(0.26 0.012 60)) at low alpha, never neutral black. A cool/black shadow on warm paper looks like dirt; the warm tint reads as light.", "section": "elevation" },
+      { "name": "The Lift-on-Intent Rule", "body": "Cards rest on shadow-md; hover raises to shadow-lg plus a 2px upward translate. Motion is on shadow and transform only — never on layout.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep the body background a true low-chroma off-white and carry warmth through the coral accent, the Fraunces serif, and warm shadows.",
+      "Do keep coral under the 10%-of-screen ceiling; use Deep Coral (accent-dim) for anything that is text on white.",
+      "Do set long-form newsletter reading in Fraunces (17px/1.7, <=68ch) and working UI / card summaries in Inter; keep data in tabular mono.",
+      "Do build depth with the soft warm shadow scale, lifting cards on hover with shadow-lg + a 2px translate.",
+      "Do tint category chips as a light fill of their hue over white with the hue as text; keep each hue mapped to one category everywhere.",
+      "Do keep muted/faint text dark enough to pass AA (muted >=7:1, faint >=5:1 on white)."
+    ],
+    "donts": [
+      "Don't tint the body background toward cream / beige / sand / parchment — that warm-neutral band is the saturated AI-generated default of 2026 this redesign exists to escape.",
+      "Don't use neutral-gray or black shadows on the warm paper — they read as grime; tint with the ink hue at low alpha.",
+      "Don't let the Deep Berry risk hue and the Poppy Coral accent read as the same red.",
+      "Don't set working UI, nav, labels, or data in the serif — Fraunces is for display and long-form reading only.",
+      "Don't use gradient text, gradient hero metrics, or a big-number/small-label SaaS metric template.",
+      "Don't use glassmorphism decoratively, or tiny tracked uppercase eyebrows above every section.",
+      "Don't use border-left/border-right colored stripes as accents; use full borders, tint fills, or the score chip.",
+      "Don't revert to the dark charcoal + neon-green terminal, or reintroduce a dark theme without an explicit toggled opt-in."
+    ]
+  }
+}
