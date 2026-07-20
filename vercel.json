@@ -3,15 +3,14 @@
 
   "functions": {
     "api/index.py": {
-      "includeFiles": "src/**",
+      "includeFiles": "{src/**,index.html,assets/**}",
       "maxDuration": 30
     }
   },
   "routes": [
     { "src": "/api", "dest": "/api/index" },
     { "src": "/api/(.*)", "dest": "/api/index" },
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
+    { "src": "/", "dest": "/index.html" }
   ]
 }
 

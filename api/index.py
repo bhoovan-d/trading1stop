@@ -61,6 +61,24 @@ if _router is not None:
     except Exception as _inc_exc:  # noqa: BLE001
         _include_router_error = repr(_inc_exc)
 
+from fastapi.responses import HTMLResponse, FileResponse
+import os
+
+@app.get("/")
+def serve_frontend_root():
+    """Fallback: serve React index.html if Vercel routing sends / to FastAPI."""
+    if os.path.exists("index.html"):
+        with open("index.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(f.read())
+    return {"detail": "Frontend index.html not found in lambda deployment"}
+
+@app.get("/assets/{filename:path}")
+def serve_frontend_assets(filename: str):
+    """Fallback: serve React assets if Vercel routing sends /assets to FastAPI."""
+    path = f"assets/{filename}"
+    if os.path.exists(path):
+        return FileResponse(path)
+    return {"detail": "Asset not found"}
 
 @app.get("/api/health")
 def health() -> dict[str, str]:
