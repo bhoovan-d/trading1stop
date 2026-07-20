@@ -20,12 +20,29 @@ _SRC = Path(__file__).resolve().parent.parent / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from fastapi import FastAPI  # noqa: E402
+from fastapi import FastAPI, Request  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
 from alpha_engine.api.routes import router  # noqa: E402
 
 app = FastAPI(title="Trading Alpha Engine API", version="0.1.0")
+
+
+@app.middleware("http")
+async def fix_vercel_rewrites(request: Request, call_next):
+    # Vercel rewrites /api/(.*) to /api/index.
+    # Restore original path from Vercel headers if present.
+    matched = (
+        request.headers.get("x-matched-path")
+        or request.headers.get("x-forwarded-uri")
+        or request.headers.get("x-original-url")
+    )
+    if matched and matched != request.url.path:
+        request.scope["path"] = matched.split("?")[0]
+    elif request.url.path in ("/api", "/api/", "/api/index"):
+        request.scope["path"] = "/api/health"
+    return await call_next(request)
+
 
 # Same-origin in production (Vercel serves the SPA and this API on one domain), so CORS is only
 # needed for local cross-origin dev against a deployed API. Harmless to keep permissive on GET.
@@ -36,9 +53,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/api")
+@app.get("/api/")
+@app.get("/api/index")
+def api_root() -> dict[str, str]:
+    return {"status": "ok"}
+
+
 app.include_router(router)
+
