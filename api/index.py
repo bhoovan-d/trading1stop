@@ -24,7 +24,12 @@ if str(_SRC) not in sys.path:
 from fastapi import FastAPI, Request  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
-from alpha_engine.api.routes import router  # noqa: E402
+_router_import_error: str | None = None
+try:
+    from alpha_engine.api.routes import router as _router  # noqa: E402
+except Exception as _exc:  # noqa: BLE001
+    _router_import_error = repr(_exc)
+    _router = None  # type: ignore[assignment]
 
 app = FastAPI(title="Trading Alpha Engine API", version="0.1.0")
 
@@ -37,7 +42,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(router)
+if _router is not None:
+    app.include_router(_router)
 
 
 @app.get("/api/health")
@@ -46,12 +52,18 @@ def health() -> dict[str, str]:
 
 
 @app.get("/api/debug")
-async def debug(request: Request) -> dict:  # type: ignore[name-defined]
-    """Diagnostic endpoint — reveals the raw path and headers Vercel sends to this function."""
-    from fastapi import Request as Req  # noqa: F401
+async def debug(request: Request) -> dict:
+    """Diagnostic endpoint — shows path, headers, and all registered routes."""
+    registered = []
+    for route in app.routes:
+        if hasattr(route, "path"):
+            registered.append(route.path)
     return {
         "path": request.url.path,
-        "raw_path": request.scope.get("path"),
-        "headers": dict(request.headers),
+        "scope_path": request.scope.get("path"),
+        "registered_routes": registered,
+        "import_error": _router_import_error,
+        "headers": {k: v for k, v in request.headers.items()},
     }
+
 
