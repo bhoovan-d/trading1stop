@@ -14,22 +14,17 @@ github:
     - mementum/backtrader
     - hummingbot/hummingbot            # execution / market-making infra
     - jesse-ai/jesse                   # crypto algotrading
-    # AI / Agentic frameworks
+    # AI / Agentic frameworks (usable tools traders can build on)
     - AI4Finance-Foundation/FinRL
-    - AI4Finance-Foundation/FinGPT
     - AI4Finance-Foundation/FinRobot
     - microsoft/qlib
     - microsoft/RD-Agent               # autonomous R&D / quant research agent
     - microsoft/autogen
     - langchain-ai/langgraph
     - crewAIInc/crewAI
-    # ML forecasting / research
-    - stefan-jansen/machine-learning-for-trading
-    - nixtla/neuralforecast
-    - nixtla/statsforecast
-    - amazon-science/chronos-forecasting
-    - google-research/timesfm
-    - time-series-foundation-models/lag-llama
+    # NOTE: pure ML-research repos (FinGPT fine-tuning, neuralforecast/statsforecast,
+    # chronos-forecasting, timesfm, lag-llama, machine-learning-for-trading) were removed —
+    # the brief covers usable trading tools, not model-training research (see the prompt de-scoring).
     # Portfolio construction / risk
     - robertmartin8/PyPortfolioOpt
     - skfolio/skfolio
@@ -50,6 +45,10 @@ reddit:
     - quant
     - quantconnect
     - quantfinance
+    # India-focused retail/algo trading communities (region-tagged by the LLM as "India")
+    - IndianStreetBets
+    - IndianStockMarket
+    - IndiaInvestments
   listing: top          # top | hot | new
   time_filter: week     # for "top": hour | day | week | month | year | all
   min_score: 0          # (only applies to the optional PRAW path; RSS has no score)
@@ -60,19 +59,8 @@ rss:
   feeds:
     # NOTE: Reddit now has its own credential-free adapter (see the `reddit:` section) —
     # it's a community source, kept separate from these alpha-stream research/release feeds.
-    # Research (arXiv quant-finance)
-    - name: "arXiv q-fin.TR (Trading & Market Microstructure)"
-      url: "http://export.arxiv.org/rss/q-fin.TR"
-    - name: "arXiv q-fin.CP (Computational Finance)"
-      url: "http://export.arxiv.org/rss/q-fin.CP"
-    - name: "arXiv q-fin.RM (Risk Management)"
-      url: "http://export.arxiv.org/rss/q-fin.RM"
-    - name: "arXiv q-fin.PM (Portfolio Management)"
-      url: "http://export.arxiv.org/rss/q-fin.PM"
-    - name: "arXiv q-fin.ST (Statistical Finance)"
-      url: "http://export.arxiv.org/rss/q-fin.ST"
-    - name: "arXiv econ.EM (Econometrics)"
-      url: "http://export.arxiv.org/rss/econ.EM"
+    # NOTE: arXiv q-fin / econ research feeds were removed — the brief covers usable trading
+    # tools and product news for active traders, not academic ML/quant papers.
     # Framework release streams
     - name: "freqtrade releases"
       url: "https://github.com/freqtrade/freqtrade/releases.atom"
@@ -113,6 +101,22 @@ rss:
       url: "https://hnrss.org/newest?q=algorithmic%20trading"
     - name: "Hacker News: quant"
       url: "https://hnrss.org/newest?q=quant%20finance"
+    # India — brokers, quant education, and fintech news (LLM tags these region="India")
+    - name: "Zerodha Z-Connect"
+      url: "https://zerodha.com/z-connect/feed"
+    - name: "Inc42 Fintech"
+      url: "https://inc42.com/industry/fintech/feed/"
+    - name: "Entrackr"
+      url: "https://entrackr.com/feed/"
+    # Launches & funding — trading/fintech products, raises, and broker features
+    - name: "TechCrunch Fintech"
+      url: "https://techcrunch.com/category/fintech/feed/"
+    - name: "Finextra Headlines"
+      url: "https://www.finextra.com/rss/headlines.aspx"
+    - name: "FinTech Futures"
+      url: "https://www.fintechfutures.com/feed/"
+    - name: "Crunchbase News"
+      url: "https://news.crunchbase.com/feed/"
 
 forums:
   # COMMUNITY-stream source. QuantConnect has a dedicated scraper (newest threads via

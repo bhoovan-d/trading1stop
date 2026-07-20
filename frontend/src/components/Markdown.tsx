@@ -77,6 +77,14 @@ export function Markdown({ source }: { source: string }) {
           {t.slice(2)}
         </h1>,
       );
+    } else if (/^\*\*[^*]+\*\*$/.test(t)) {
+      // A whole line of just bold text = a sub-heading (e.g. strategy buckets). Checked before
+      // the italic rule below, which would otherwise swallow it (line both starts & ends with *).
+      out.push(
+        <p key={i} className="mt-5 mb-1 font-mono text-[11px] font-semibold uppercase tracking-wider text-muted">
+          {t.slice(2, -2)}
+        </p>,
+      );
     } else if (t.startsWith("<sub>")) {
       out.push(
         <p key={i} className="font-mono text-[11px] text-faint">

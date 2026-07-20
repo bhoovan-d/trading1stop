@@ -5,20 +5,23 @@ import { InsightCard } from "../components/InsightCard";
 import { Pagination } from "../components/Pagination";
 
 const PAGE_SIZE = 20;
-const FILTER_KEYS = ["category", "approach", "min_score", "source", "date_from", "date_to", "q"] as const;
+const FILTER_KEYS = ["category", "approach", "item_type", "min_score", "source", "date_from", "date_to", "q"] as const;
 
 export function FeedPage({
   stream,
   lockedCategory,
-}: { stream?: "alpha" | "community"; lockedCategory?: string } = {}) {
+  lockedRegion,
+}: { stream?: "alpha" | "community"; lockedCategory?: string; lockedRegion?: string } = {}) {
   const [params, setParams] = useSearchParams();
   const { data: meta } = useMeta();
   const isCommunity = stream === "community";
   const isFirms = lockedCategory != null;
+  const isIndia = lockedRegion != null;
 
   const values: FilterValues = {
     category: params.get("category") ?? "",
     approach: params.get("approach") ?? "",
+    item_type: params.get("item_type") ?? "",
     min_score: params.get("min_score") ?? "",
     source: params.get("source") ?? "",
     date_from: params.get("date_from") ?? "",
@@ -68,6 +71,8 @@ export function FeedPage({
   const { data, isLoading, isError, isPlaceholderData } = useInsights({
     category: lockedCategory ?? (values.category || undefined),
     approach: values.approach || undefined,
+    item_type: values.item_type || undefined,
+    region: lockedRegion ?? undefined,
     min_score: values.min_score ? Number(values.min_score) : undefined,
     source: values.source || undefined,
     stream,
@@ -81,7 +86,21 @@ export function FeedPage({
 
   return (
     <div>
-      {isFirms ? (
+      {isIndia ? (
+        <div className="mb-5 mt-6">
+          <h1
+            className="font-serif text-2xl font-semibold tracking-tight text-ink"
+            style={{ fontVariationSettings: '"opsz" 40' }}
+          >
+            India Watch
+          </h1>
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted">
+            How Indian traders are putting AI to work — intraday and options on the Nifty and Bank Nifty,
+            stock screening, and automation through brokers like Zerodha, Upstox and Dhan. Signals from
+            Indian markets, brokers, and fintechs, curated the same way as the main feed.
+          </p>
+        </div>
+      ) : isFirms ? (
         <div className="mb-5 mt-6">
           <h1
             className="font-serif text-2xl font-semibold tracking-tight text-ink"
@@ -155,11 +174,13 @@ export function FeedPage({
             body={
               active
                 ? "Try loosening the filters."
-                : isFirms
-                  ? "No quant-firm signals yet — they'll appear after the next pipeline run."
-                  : isCommunity
-                    ? "No community discussions yet — they'll appear after the next pipeline run."
-                    : "Run the pipeline to populate the feed."
+                : isIndia
+                  ? "No India signals yet — they'll appear after the next pipeline run."
+                  : isFirms
+                    ? "No quant-firm signals yet — they'll appear after the next pipeline run."
+                    : isCommunity
+                      ? "No community discussions yet — they'll appear after the next pipeline run."
+                      : "Run the pipeline to populate the feed."
             }
           />
         ) : (

@@ -13,44 +13,53 @@ from datetime import datetime, timedelta, timezone
 from loguru import logger
 
 from .db import init_db, session_scope
-from .models import Approach, Category, Insight, RawItem
+from .models import Approach, Category, Insight, ItemType, RawItem, Region, WorkflowStage
 from .storage import repository
 from .ingestion.base import RawItemDraft
 
-# (source, category, approaches, title, summary, trader_impact) — retail-trader tone.
+# (source, category, approaches, item_type, region, workflow_stage, title, summary, trader_impact)
+# — everyday-trader tone; covers every newsletter section (launch / funding / early_stage / India).
 _SAMPLES = [
     ("github", Category.INTRADAY_TRADING, [Approach.AGENTIC_AI, Approach.AUTOMATION],
+     ItemType.TOOLING, Region.GLOBAL, None,
      "[langchain-ai/langgraph] Durable AI agents that trade the whole session without losing their place",
      "A framework update lets you build an always-on AI agent that keeps its state through crashes and restarts, so it can watch the market and place trades all day.",
-     "You could run a hands-off intraday bot that survives a laptop reboot mid-session instead of forgetting its open positions and plan."),
-    ("github", Category.TECHNICAL_ANALYSIS, [Approach.MACHINE_LEARNING],
-     "[microsoft/qlib] Free toolkit adds a model that ranks stocks by momentum, retrained automatically",
-     "An open-source library added a machine-learning model that scores which stocks are likely to keep trending, and retrains itself on fresh data on a schedule.",
-     "Gives a chart-based trader a ready-made momentum ranker to build a watchlist from, without coding the model or babysitting retraining."),
+     "You can now run a hands-off intraday bot that survives a laptop reboot mid-session instead of forgetting its open positions and plan."),
+    ("rss", Category.TECHNICAL_ANALYSIS, [Approach.AUTOMATION, Approach.INFRA_DATA],
+     ItemType.LAUNCH, Region.GLOBAL, WorkflowStage.EXECUTION,
+     "TradeCopilot launches an AI charting assistant that turns plain-English setups into live alerts",
+     "A new web app lets you describe a chart setup in ordinary words and it watches the market and pings you the moment the pattern appears.",
+     "You can now get alerted on your own custom setups without coding a scanner or staring at charts all day."),
+    ("rss", Category.QUANT_FIRMS, [Approach.INFRA_DATA, Approach.MACHINE_LEARNING],
+     ItemType.FUNDING, Region.GLOBAL, WorkflowStage.SIGNAL,
+     "AI trading-signal startup Alphaform raises $18M to open its data platform to retail traders",
+     "A startup that builds AI-generated trade signals raised new funding and says it will open a lower-cost tier for individual traders.",
+     "You can soon access institution-style AI signals on a retail budget instead of being priced out."),
     ("rss", Category.SWING_TRADING, [Approach.MACHINE_LEARNING],
-     "How one trader uses an ML screener to surface multi-day breakout setups",
-     "A practitioner blog walks through a simple model that flags stocks setting up for multi-day breakouts and ranks them each evening.",
-     "A repeatable nightly routine to find swing setups so you're not manually scanning hundreds of charts after the close."),
+     ItemType.EARLY_STAGE, Region.GLOBAL, WorkflowStage.RESEARCH,
+     "SwingScout opens a waitlist for an AI screener that explains why each setup made the list",
+     "An early-access tool ranks multi-day breakout candidates each evening and writes a short plain-English reason for every pick.",
+     "You can soon get a nightly shortlist of swing setups with the 'why' spelled out, instead of trusting a black-box score."),
+    ("reddit", Category.INTRADAY_TRADING, [Approach.AUTOMATION, Approach.AGENTIC_AI],
+     ItemType.DISCUSSION, Region.INDIA, None,
+     "[r/IndianStreetBets] How I automate Bank Nifty options intraday with an AI bot on Zerodha Kite",
+     "An Indian retail trader shares how they wired an AI assistant to the Zerodha Kite API to place and manage Bank Nifty options trades during the day.",
+     "You can now copy a concrete, India-specific setup for automating index-options day trades through a broker most Indian traders already use."),
+    ("rss", Category.MACRO_ANALYSIS, [Approach.SENTIMENT_NEWS],
+     ItemType.LAUNCH, Region.INDIA, WorkflowStage.SIGNAL,
+     "Indian fintech ships an AI tool that reads RBI statements and flags rate-move odds",
+     "A new tool summarizes Reserve Bank of India policy statements and estimates how likely a rate change is, in plain language.",
+     "You can now gauge how India's central bank might move rates in minutes instead of reading the full policy text yourself."),
+    ("github", Category.FUNDAMENTAL_ANALYSIS, [Approach.SENTIMENT_NEWS],
+     ItemType.TOOLING, Region.GLOBAL, None,
+     "[open-source] An AI that reads earnings calls and flags what changed",
+     "A tool ingests earnings-call transcripts and filings and summarizes tone shifts and notable changes versus the prior quarter.",
+     "You can now skim the signal from a company's report in seconds instead of reading the whole transcript before a fundamentals trade."),
     ("mcp", Category.TECHNICAL_ANALYSIS, [Approach.INFRA_DATA],
+     ItemType.TOOLING, Region.GLOBAL, None,
      "[MCP] A plug-and-play market-data connector for AI charting bots",
      "A small server exposes live and historical price and order-book data as ready-made tools any AI assistant can call.",
-     "Lets your trading copilot pull real-time quotes and indicators without wiring up a broker API yourself."),
-    ("reddit", Category.TECHNICAL_ANALYSIS, [Approach.AUTOMATION],
-     "[r/algotrading] A no-code breakout bot people are actually running on a broker API",
-     "Thread shares a rules-based bot that buys confirmed breakouts and trails a stop, set up through a broker's API with no ML involved.",
-     "A concrete template for automating a breakout strategy you already trade by hand, freeing you from watching the screen."),
-    ("forum", Category.INTRADAY_TRADING, [Approach.AGENTIC_AI],
-     "[QuantConnect Community] Using an AI copilot to write and backtest day-trading strategies from plain English",
-     "Members show how an LLM assistant drafts, compiles, and backtests intraday strategies from a plain-English description.",
-     "Shrinks the gap between a trade idea and a tested strategy — describe a day-trading setup and get runnable, backtested code."),
-    ("github", Category.FUNDAMENTAL_ANALYSIS, [Approach.SENTIMENT_NEWS, Approach.MACHINE_LEARNING],
-     "[open-source] An AI that reads earnings calls and flags what changed",
-     "A tool ingests earnings-call transcripts and filings and summarizes tone shifts and notable changes versus prior quarters.",
-     "Skim the signal from a company's report in seconds instead of reading the whole transcript before a fundamentals-driven trade."),
-    ("rss", Category.MACRO_ANALYSIS, [Approach.MACHINE_LEARNING, Approach.RISK_SIZING],
-     "A simple regime detector that tells you when to risk more (or less)",
-     "A blog shows a lightweight model that labels the market as calm or stormy and scales position size to match.",
-     "Trade macro conditions more deliberately — lean in during calm regimes and cut size before turbulence, on autopilot."),
+     "You can now let your trading copilot pull real-time quotes and indicators without wiring up a broker API yourself."),
 ]
 
 
@@ -62,7 +71,7 @@ def seed_demo(count: int = 24) -> int:
 
     with session_scope() as session:
         for i in range(count):
-            src, cat, approaches, title, summ, impact = _SAMPLES[i % len(_SAMPLES)]
+            src, cat, approaches, item_type, region, stage, title, summ, impact = _SAMPLES[i % len(_SAMPLES)]
             draft = RawItemDraft(
                 source=src,
                 external_id=f"demo:{i}",
@@ -83,6 +92,9 @@ def seed_demo(count: int = 24) -> int:
                 relevance_score=random.choice([7, 8, 8, 9, 9, 10]),
                 category=cat.value,
                 approaches=json.dumps([a.value for a in approaches]),
+                item_type=item_type.value,
+                region=region.value,
+                workflow_stage=stage.value if stage else None,
                 technical_summary=summ,
                 trader_impact=impact,
                 model_used="demo:seed",

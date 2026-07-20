@@ -1,11 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { Meta } from "../types";
-import { categoryColor, sourceLabel } from "../lib";
+import { categoryColor, itemTypeLabel, sourceLabel } from "../lib";
 import { Popover } from "./Popover";
 
 export interface FilterValues {
   category: string;
   approach: string;
+  item_type: string;
   min_score: string;
   source: string;
   date_from: string;
@@ -163,10 +164,15 @@ export function FilterBar({ values, meta, active, onChange, onApplyMany, onClear
 
   const categories = meta?.categories ?? [];
   const approaches = meta?.approaches ?? [];
+  const itemTypes = meta?.item_types ?? [];
   const sources = meta?.sources ?? [];
-  const activeCount = [values.min_score, values.approach, values.source, values.date_from].filter(
-    Boolean,
-  ).length;
+  const activeCount = [
+    values.min_score,
+    values.approach,
+    values.item_type,
+    values.source,
+    values.date_from,
+  ].filter(Boolean).length;
 
   function setTimeframe(v: string) {
     if (v === "all") return onApplyMany({ date_from: "", date_to: "" });
@@ -244,6 +250,22 @@ export function FilterBar({ values, meta, active, onChange, onApplyMany, onClear
                   onChange={(v) => onChange("min_score", v)}
                 />
               </Field>
+
+              {itemTypes.length > 0 && (
+                <Field label="Type">
+                  <div className="flex flex-wrap gap-1.5">
+                    <Pill label="All" selected={values.item_type === ""} onClick={() => onChange("item_type", "")} />
+                    {itemTypes.map((t) => (
+                      <Pill
+                        key={t}
+                        label={itemTypeLabel(t)}
+                        selected={values.item_type === t}
+                        onClick={() => onChange("item_type", values.item_type === t ? "" : t)}
+                      />
+                    ))}
+                  </div>
+                </Field>
+              )}
 
               {approaches.length > 0 && (
                 <Field label="Approach">

@@ -66,6 +66,20 @@ def init_db() -> None:
                 "WHERE NOT EXISTS (SELECT 1 FROM sourceregistry s WHERE s.source_key = r.source_key)"
             ))
             conn.execute(text("INSERT INTO schema_migrations (version) VALUES (3)"))
+        if 4 not in versions:
+            # New classification axes on Insight: item_type (launch/funding/early_stage/…),
+            # region (India/Global), and workflow_stage. ADD COLUMN ... DEFAULT is valid on
+            # both SQLite and Postgres, so existing rows get the defaults immediately.
+            columns = {column["name"] for column in inspect(conn).get_columns("insight")}
+            if "item_type" not in columns:
+                conn.execute(text("ALTER TABLE insight ADD COLUMN item_type VARCHAR NOT NULL DEFAULT 'tooling'"))
+            if "region" not in columns:
+                conn.execute(text("ALTER TABLE insight ADD COLUMN region VARCHAR NOT NULL DEFAULT 'Global'"))
+            if "workflow_stage" not in columns:
+                conn.execute(text("ALTER TABLE insight ADD COLUMN workflow_stage VARCHAR"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_insight_item_type ON insight (item_type)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_insight_region ON insight (region)"))
+            conn.execute(text("INSERT INTO schema_migrations (version) VALUES (4)"))
 
 
 def recreate_insight_tables() -> None:
