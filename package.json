@@ -3,6 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "cd frontend && npm install && npm run build && cd .. && node -e \"const fs = require('fs'); fs.rmSync('public', {recursive:true, force:true}); fs.cpSync('frontend/dist', 'public', {recursive:true});\""
+    "build": "cd frontend && npm install && npm run build"
   }
 }

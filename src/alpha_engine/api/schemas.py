@@ -27,6 +27,9 @@ class InsightOut(BaseModel):
     relevance_score: int
     category: str
     approaches: list[str] = []
+    item_type: str = "tooling"
+    region: str = "Global"
+    workflow_stage: str | None = None
     technical_summary: str
     trader_impact: str
     model_used: str
@@ -46,6 +49,9 @@ class InsightOut(BaseModel):
             relevance_score=insight.relevance_score,
             category=insight.category,
             approaches=_parse_approaches(getattr(insight, "approaches", None)),
+            item_type=getattr(insight, "item_type", None) or "tooling",
+            region=getattr(insight, "region", None) or "Global",
+            workflow_stage=getattr(insight, "workflow_stage", None),
             technical_summary=insight.technical_summary,
             trader_impact=insight.trader_impact,
             model_used=insight.model_used,
@@ -69,6 +75,8 @@ class InsightPage(BaseModel):
 class MetaOut(BaseModel):
     categories: list[str]
     approaches: list[str]
+    item_types: list[str]
+    regions: list[str]
     sources: list[str]
     score_min: int
     score_max: int

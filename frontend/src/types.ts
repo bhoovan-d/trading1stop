@@ -3,6 +3,9 @@ export interface Insight {
   relevance_score: number;
   category: string;
   approaches: string[];
+  item_type: string;
+  region: string;
+  workflow_stage?: string | null;
   technical_summary: string;
   trader_impact: string;
   model_used: string;
@@ -25,6 +28,8 @@ export interface InsightPage {
 export interface Meta {
   categories: string[];
   approaches: string[];
+  item_types: string[];
+  regions: string[];
   sources: string[];
   score_min: number;
   score_max: number;

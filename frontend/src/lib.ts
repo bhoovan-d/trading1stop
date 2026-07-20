@@ -39,3 +39,22 @@ export const SOURCE_LABEL: Record<string, string> = {
 export function sourceLabel(source: string): string {
   return SOURCE_LABEL[source] ?? source;
 }
+
+// Item-type axis: what KIND of item it is (launch / funding / early-stage news, etc.).
+export const ITEM_TYPE_LABEL: Record<string, string> = {
+  launch: "Launch",
+  funding: "Funding",
+  early_stage: "Early Stage",
+  research: "Research",
+  discussion: "Discussion",
+  tooling: "Tooling",
+};
+
+export function itemTypeLabel(itemType: string): string {
+  return ITEM_TYPE_LABEL[itemType] ?? itemType;
+}
+
+/** Non-default item types earn a badge on the card; tooling/discussion stay unbadged. */
+export function isBadgeItemType(itemType: string): boolean {
+  return itemType === "launch" || itemType === "funding" || itemType === "early_stage";
+}

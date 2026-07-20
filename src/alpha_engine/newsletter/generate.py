@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -18,14 +19,69 @@ from ..storage import repository
 # scope lets the read-only API (which imports markdown_for_date) stay free of openai/anthropic/etc.,
 # so the Vercel serverless function stays slim.
 
-# How many insights fill each tier of the brief. Everything beyond these caps is intentionally
-# left out of the newsletter — it still lives in the browsable feed.
-LEAD_COUNT = 1
-NOTABLE_COUNT = 3
-IN_BRIEF_COUNT = 6
-_TOP_COUNT = LEAD_COUNT + NOTABLE_COUNT
+# Per-section caps. Everything beyond these is intentionally left out of the newsletter — it still
+# lives in the browsable feed. The brief now leads with product news, then strategy, then picks.
+WATCH_LIST_COUNT = 3      # early-stage (beta / waitlist / just-announced), flagged not vetted
+LAUNCH_COUNT = 4          # shipped launches + funding
+INDIA_COUNT = 3           # India-focused items (incl. the community carve-out below)
+PER_BUCKET_COUNT = 2      # items per strategy bucket (Technical / Macro / Sentiment / Fundamental)
+QUANT_FIRMS_COUNT = 2     # "From the Quant Firms" sub-block
+WORTH_TRYING_COUNT = 3    # picks worth actually testing (chosen from already-selected items)
+
+# The alpha bar (config.relevance_threshold default 7). The India section admits COMMUNITY items
+# only when they clear THIS higher bar — a deliberate exception to the community exclusion below,
+# because "how India trades with AI" is mostly community content but must stay curated.
+_INDIA_COMMUNITY_MIN = 7
+
+# Strategy buckets for "By Strategy Type". The Sentiment bucket is driven by the approach tag
+# (approach wins over category); Quant Firms fold into their own sub-block (bucket None).
+_BUCKET_BY_CATEGORY = {
+    "Technical Analysis": "Technical",
+    "Intraday Trading": "Technical",
+    "Swing Trading": "Technical",
+    "Macro Analysis": "Macro",
+    "Fundamental Analysis": "Fundamental",
+}
+_BUCKET_ORDER = ["Technical", "Macro", "Sentiment", "Fundamental"]
+_LAUNCH_TYPES = {"launch", "funding"}
 
 Row = tuple[Insight, RawItem]
+
+
+@dataclass
+class Sections:
+    """The day's picks split into the newsletter's sections. Each Row appears in exactly one
+    *primary* section (launches/watch/india/strategy); worth_trying references already-picked
+    ids, and what_changed spans every selected item."""
+
+    launches: list[Row] = field(default_factory=list)
+    watch_list: list[Row] = field(default_factory=list)
+    india: list[Row] = field(default_factory=list)
+    strategy: dict[str, list[Row]] = field(default_factory=dict)  # bucket -> rows
+    quant_firms: list[Row] = field(default_factory=list)
+    worth_trying: list[Row] = field(default_factory=list)
+
+    def selected(self) -> list[Row]:
+        """Every row that appears in a primary section, de-duplicated, order preserved."""
+        seen: set[int] = set()
+        out: list[Row] = []
+        buckets = [r for rows in self.strategy.values() for r in rows]
+        for row in [*self.launches, *self.watch_list, *self.india, *buckets, *self.quant_firms]:
+            if id(row) not in seen:
+                seen.add(id(row))
+                out.append(row)
+        return out
+
+    def is_empty(self) -> bool:
+        return not self.selected()
+
+
+def strategy_bucket(insight: Insight) -> str | None:
+    """Map an insight to a strategy bucket. The Sentiment & News approach tag wins over category;
+    Quant Firms return None (rendered in their own sub-block)."""
+    if '"Sentiment & News"' in (insight.approaches or ""):
+        return "Sentiment"
+    return _BUCKET_BY_CATEGORY.get(insight.category)
 
 
 def _as_date(dt: datetime | None) -> date | None:
@@ -38,11 +94,21 @@ def _as_date(dt: datetime | None) -> date | None:
 
 def _rows(session: Session) -> list[Row]:
     # The published brief is the high-signal ALPHA stream only; community discussion
-    # (reddit/forums) is browse-only in the UI and deliberately excluded here.
+    # (reddit/forums) is browse-only in the UI and deliberately excluded here — with ONE
+    # exception: India-region community items that clear the higher alpha bar are admitted so
+    # the India section can cover "how India trades with AI" (mostly community) while staying
+    # curated. See _INDIA_COMMUNITY_MIN.
+    from sqlalchemy import and_, or_
+
     stmt = (
         select(Insight, RawItem)
         .join(RawItem, Insight.raw_item_id == RawItem.id)
-        .where(RawItem.source.not_in(COMMUNITY_SOURCES))
+        .where(
+            or_(
+                RawItem.source.not_in(COMMUNITY_SOURCES),
+                and_(Insight.region == "India", Insight.relevance_score >= _INDIA_COMMUNITY_MIN),
+            )
+        )
         .order_by(Insight.relevance_score.desc(), Insight.created_at.desc())
     )
     return list(session.exec(stmt).all())
@@ -57,35 +123,67 @@ def available_dates(session: Session) -> list[str]:
     return sorted((d.isoformat() for d in dates if d is not None), reverse=True)
 
 
-def _select(rows: list[Row]) -> tuple[list[Row], list[Row], list[Row]]:
-    """Split rows into (lead, notable, in_brief).
+def _item_type(insight: Insight) -> str:
+    return getattr(insight, "item_type", "tooling") or "tooling"
 
-    ``rows`` arrive sorted by relevance_score desc. The Lead + Notable set is built by
-    round-robin across categories — ordering the category cycle by each category's top score
-    keeps the single highest-signal item as the Lead while maximizing category spread across
-    the top picks. In Brief then takes the next-highest remaining items by pure score.
+
+def _region(insight: Insight) -> str:
+    return getattr(insight, "region", "Global") or "Global"
+
+
+def _select(rows: list[Row]) -> Sections:
+    """Assign the day's rows to the newsletter's sections.
+
+    ``rows`` arrive sorted by relevance_score desc. Each row lands in exactly one primary
+    section, claimed in priority order so India content is concentrated in its own section and
+    product news leads the rest:
+      India (region=India) → Watch List (early_stage) → New Launches (launch/funding) →
+      By Strategy Type (bucketed) + Quant Firms sub-block.
+    Worth Trying is a *fallback* set drawn from already-selected items (the editorial LLM may
+    override it). What Changed for Traders spans every selected item and is built at render time.
     """
-    groups: dict[str, list[Row]] = {}
-    for pair in rows:
-        groups.setdefault(pair[0].category, []).append(pair)
+    sec = Sections()
+    used: set[int] = set()
 
-    # Highest-signal category first, so the very first pick is the global top-scored item.
-    cat_order = sorted(groups, key=lambda c: groups[c][0][0].relevance_score, reverse=True)
-    queues = {c: list(groups[c]) for c in cat_order}
+    def take(pred, cap: int) -> list[Row]:
+        out: list[Row] = []
+        for row in rows:
+            if id(row) in used or len(out) >= cap:
+                continue
+            if pred(row):
+                used.add(id(row))
+                out.append(row)
+        return out
 
-    top: list[Row] = []
-    while len(top) < _TOP_COUNT and any(queues[c] for c in cat_order):
-        for c in cat_order:
-            if queues[c]:
-                top.append(queues[c].pop(0))
-                if len(top) >= _TOP_COUNT:
-                    break
+    sec.india = take(lambda r: _region(r[0]) == "India", INDIA_COUNT)
+    sec.watch_list = take(lambda r: _item_type(r[0]) == "early_stage", WATCH_LIST_COUNT)
+    sec.launches = take(lambda r: _item_type(r[0]) in _LAUNCH_TYPES, LAUNCH_COUNT)
 
-    picked = {id(pair) for pair in top}
-    lead = top[:LEAD_COUNT]
-    notable = top[LEAD_COUNT:_TOP_COUNT]
-    in_brief = [p for p in rows if id(p) not in picked][:IN_BRIEF_COUNT]
-    return lead, notable, in_brief
+    # By Strategy Type — bucket the remainder; Quant Firms get their own sub-block.
+    for row in rows:
+        if id(row) in used:
+            continue
+        if row[0].category == "Quant Firms" and strategy_bucket(row[0]) is None:
+            if len(sec.quant_firms) < QUANT_FIRMS_COUNT:
+                used.add(id(row))
+                sec.quant_firms.append(row)
+            continue
+        bucket = strategy_bucket(row[0])
+        if bucket is None:
+            continue  # no strategy home and not a quant-firm item — left to the browsable feed
+        rows_in = sec.strategy.setdefault(bucket, [])
+        if len(rows_in) < PER_BUCKET_COUNT:
+            used.add(id(row))
+            rows_in.append(row)
+
+    # Worth Trying fallback: highest-scored already-selected launches/tooling worth testing.
+    selected = sec.selected()
+    sec.worth_trying = [
+        r for r in selected if _item_type(r[0]) in {"launch", "tooling"}
+    ][:WORTH_TRYING_COUNT]
+    if not sec.worth_trying:
+        sec.worth_trying = selected[:WORTH_TRYING_COUNT]
+    return sec
 
 
 def _truncate_sentence(text: str, max_chars: int = 140) -> str:
@@ -119,24 +217,31 @@ def _copy_for(picks: dict, insight: Insight) -> str | None:
     return None
 
 
-def _lead_block(insight: Insight, raw: RawItem, copy: str | None) -> list[str]:
-    header = f"### {insight.relevance_score}/10 · [{_safe_title(raw)}]({raw.url})"
-    if copy:  # editorial prose stands on its own — no raw technical dump
-        body = [copy, ""]
-    else:     # fallback: the original technical summary + why-it-matters
-        body = [
-            insight.technical_summary.strip(),
-            "",
-            f"**Why it matters:** {insight.trader_impact.strip()}",
-            "",
-        ]
-    return [header, "", *body, _source_footer(raw), ""]
+_STATUS_LABEL = {"launch": "shipped", "funding": "funded", "early_stage": "early access"}
 
 
-def _notable_block(insight: Insight, raw: RawItem, copy: str | None) -> list[str]:
+def _launch_block(insight: Insight, raw: RawItem, copy: str | None) -> list[str]:
+    """A rich New-Launches entry: heading, what-it-is prose, and a workflow/status line."""
     header = f"### {insight.relevance_score}/10 · [{_safe_title(raw)}]({raw.url})"
-    line = copy if copy else f"**Why it matters:** {insight.trader_impact.strip()}"
-    return [header, "", line, "", _source_footer(raw), ""]
+    body = copy or insight.technical_summary.strip()
+    meta_bits: list[str] = []
+    stage = getattr(insight, "workflow_stage", None)
+    if stage:
+        meta_bits.append(f"**Touches:** {stage}")
+    status = _STATUS_LABEL.get(_item_type(insight))
+    if status:
+        meta_bits.append(f"**Status:** {status}")
+    lines = [header, "", body, ""]
+    if meta_bits:
+        lines += [" · ".join(meta_bits), ""]
+    lines += [_source_footer(raw), ""]
+    return lines
+
+
+def _compact_line(insight: Insight, raw: RawItem, label: str, clause: str) -> str:
+    """One renderer-safe line: score · label · [title](url) — clause. No link nested in bold,
+    never both starts-and-ends with '*' (which the frontend renderer treats as italic)."""
+    return f"**{insight.relevance_score}/10** · {label} · [{_safe_title(raw)}]({raw.url}) — {clause}"
 
 
 def _render(day: date, rows: list[Row], brief: dict | None = None) -> str:
@@ -144,12 +249,16 @@ def _render(day: date, rows: list[Row], brief: dict | None = None) -> str:
     if not rows:
         return f"{title}\n\n_No qualifying insights for this date._\n"
 
-    lead, notable, in_brief = _select(rows)
+    sec = _select(rows)
+    if sec.is_empty():
+        return f"{title}\n\n_No qualifying insights for this date._\n"
+
     brief = brief or {}
     picks = brief.get("picks", {}) if isinstance(brief.get("picks"), dict) else {}
+    worth_meta = brief.get("worth_trying", {}) if isinstance(brief.get("worth_trying"), dict) else {}
 
     intro = brief.get("theme") or (
-        f"The sharpest AI/ML-in-trading developments surfaced today — {len(rows)} picks."
+        f"Today's launches, tools, and India signals for active traders — {len(sec.selected())} picks."
     )
     lines = [title, "", f"*{intro}*", ""]
 
@@ -157,30 +266,76 @@ def _render(day: date, rows: list[Row], brief: dict | None = None) -> str:
     if isinstance(editor_note, str) and editor_note.strip():
         lines += [editor_note.strip(), ""]
 
-    lines.append("## The Lead")
-    lines.append("")
-    for insight, raw in lead:
-        lines += _lead_block(insight, raw, _copy_for(picks, insight))
+    # ── New Launches ────────────────────────────────────────────────────────────
+    if sec.launches:
+        lines += ["## New Launches", ""]
+        for insight, raw in sec.launches:
+            lines += _launch_block(insight, raw, _copy_for(picks, insight))
 
-    if notable:
-        lines.append("## Also Notable")
-        lines.append("")
-        for insight, raw in notable:
-            lines += _notable_block(insight, raw, _copy_for(picks, insight))
+    # ── By Strategy Type ────────────────────────────────────────────────────────
+    if any(sec.strategy.values()) or sec.quant_firms:
+        lines += ["## By Strategy Type", ""]
+        for bucket in _BUCKET_ORDER:
+            bucket_rows = sec.strategy.get(bucket) or []
+            if not bucket_rows:
+                continue
+            lines += [f"**{bucket}**", ""]
+            for insight, raw in bucket_rows:
+                clause = _copy_for(picks, insight) or _truncate_sentence(insight.trader_impact)
+                lines += [_compact_line(insight, raw, bucket, clause), ""]
+        if sec.quant_firms:
+            lines += ["**From the Quant Firms**", ""]
+            for insight, raw in sec.quant_firms:
+                clause = _copy_for(picks, insight) or _truncate_sentence(insight.trader_impact)
+                lines += [_compact_line(insight, raw, "Quant Firms", clause), ""]
 
-    if in_brief:
-        lines.append("## In Brief")
-        lines.append("")
-        for insight, raw in in_brief:
+    # ── What Changed for Traders ────────────────────────────────────────────────
+    selected = sec.selected()
+    if selected:
+        lines += ["## What Changed for Traders", ""]
+        for insight, raw in selected:
+            clause = _truncate_sentence(insight.trader_impact)
+            lines += [f"[{_safe_title(raw)}]({raw.url}) — {clause}", ""]
+
+    # ── Worth Trying ────────────────────────────────────────────────────────────
+    by_id = {str(i.id): (i, r) for i, r in selected}
+    worth: list[Row] = []
+    for pid in worth_meta:  # editorial LLM's picks first (if they resolve to selected items)
+        if pid in by_id and by_id[pid] not in worth:
+            worth.append(by_id[pid])
+    for row in sec.worth_trying:  # top up with the deterministic fallback
+        if row not in worth and len(worth) < WORTH_TRYING_COUNT:
+            worth.append(row)
+    worth = worth[:WORTH_TRYING_COUNT]
+    if worth:
+        lines += ["## Worth Trying", ""]
+        for n, (insight, raw) in enumerate(worth, 1):
+            why = ""
+            entry = worth_meta.get(str(insight.id))
+            if isinstance(entry, dict) and isinstance(entry.get("why"), str):
+                why = entry["why"].strip()
+            why = why or _truncate_sentence(insight.trader_impact)
+            lines += [f"**{n}.** [{_safe_title(raw)}]({raw.url}) — {why}", ""]
+
+    # ── Watch List ──────────────────────────────────────────────────────────────
+    if sec.watch_list:
+        lines += ["## Watch List", ""]
+        for insight, raw in sec.watch_list:
             clause = _copy_for(picks, insight) or _truncate_sentence(insight.trader_impact)
-            lines.append(
-                f"**{insight.relevance_score}/10** · {insight.category} · "
-                f"[{_safe_title(raw)}]({raw.url}) — {clause}"
-            )
-            lines.append("")
+            lines += [
+                _compact_line(insight, raw, "early stage", clause)
+                + " (announced / beta / waitlist — flagged, not vetted)",
+                "",
+            ]
 
-    lines.append("---")
-    lines.append("")
+    # ── India Watch (only when there's material) ────────────────────────────────
+    if sec.india:
+        lines += ["## India Watch", ""]
+        for insight, raw in sec.india:
+            clause = _copy_for(picks, insight) or _truncate_sentence(insight.trader_impact)
+            lines += [_compact_line(insight, raw, insight.category, clause), ""]
+
+    lines += ["---", ""]
     lines.append("*Generated by Trading Alpha Engine. This is a publish-ready draft — review before sending.*")
     return "\n".join(lines).rstrip() + "\n"
 
@@ -212,8 +367,8 @@ def write_newsletter(day: date | None = None) -> Path:
     with session_scope() as session:
         rows = _rows_for_date(session, day)
         if rows:
-            lead, notable, in_brief = _select(rows)
-            result = generate_editorial(lead, notable, in_brief, build_provider(settings))
+            sec = _select(rows)
+            result = generate_editorial(sec, build_provider(settings))
             if result is not None:
                 payload, model_used = result
                 repository.upsert_brief(session, day, payload, model_used)

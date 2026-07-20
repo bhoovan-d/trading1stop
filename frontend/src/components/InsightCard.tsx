@@ -1,5 +1,29 @@
 import type { Insight } from "../types";
-import { categoryColor, formatDate, scoreColor, sourceLabel } from "../lib";
+import { categoryColor, formatDate, isBadgeItemType, itemTypeLabel, scoreColor, sourceLabel } from "../lib";
+
+function ItemTypeBadge({ itemType }: { itemType: string }) {
+  // Launch / Funding / Early Stage news wear the accent so product signals stand out.
+  return (
+    <span
+      className="rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide"
+      style={{
+        color: "var(--color-accent-dim)",
+        backgroundColor: "var(--color-accent-tint)",
+        border: "1px solid color-mix(in oklab, var(--color-accent) 30%, transparent)",
+      }}
+    >
+      {itemTypeLabel(itemType)}
+    </span>
+  );
+}
+
+function RegionBadge() {
+  return (
+    <span className="rounded-full border border-border bg-surface-2 px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wide text-muted">
+      🇮🇳 India
+    </span>
+  );
+}
 
 function CategoryTag({ category }: { category: string }) {
   const color = categoryColor(category);
@@ -61,9 +85,12 @@ export function InsightCard({ insight, index }: { insight: Insight; index: numbe
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <CategoryTag category={insight.category} />
+            {isBadgeItemType(insight.item_type) && <ItemTypeBadge itemType={insight.item_type} />}
+            {insight.region === "India" && <RegionBadge />}
             {insight.approaches?.map((a) => (
               <ApproachTag key={a} label={a} />
             ))}
+            {insight.workflow_stage && <ApproachTag label={insight.workflow_stage} />}
             <span className="font-mono text-[11px] uppercase tracking-wide text-faint">
               {sourceLabel(insight.source)}
             </span>

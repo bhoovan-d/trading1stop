@@ -37,6 +37,36 @@ class Approach(str, Enum):
     RISK_SIZING = "Risk & Sizing"
 
 
+class ItemType(str, Enum):
+    """What KIND of item this is — the axis that drives the newsletter's launch-focused
+    sections (New Launches, Watch List). Human-readable values used verbatim by the LLM."""
+
+    LAUNCH = "launch"            # a shipped product / feature / platform a trader can use now
+    FUNDING = "funding"          # a funding round or acquisition of a trading-relevant company
+    EARLY_STAGE = "early_stage"  # announced / beta / waitlist — not generally usable yet
+    RESEARCH = "research"        # papers, methods, backtests, model write-ups
+    DISCUSSION = "discussion"    # community threads, experience reports
+    TOOLING = "tooling"          # updates to existing OSS / infra / tools (the default bucket)
+
+
+class Region(str, Enum):
+    """Geographic focus of an item. Drives the India tab + newsletter India section."""
+
+    INDIA = "India"
+    GLOBAL = "Global"
+
+
+class WorkflowStage(str, Enum):
+    """Which part of the trading workflow a launch touches. Only set for launch/funding/
+    early_stage items; None otherwise. Display-only (not a filter in v1)."""
+
+    RESEARCH = "Research"
+    SIGNAL = "Signal Generation"
+    EXECUTION = "Execution"
+    RISK = "Risk"
+    MONITORING = "Monitoring"
+
+
 class RawItem(SQLModel, table=True):
     """A single ingested item from any source, before AI filtering.
 
@@ -87,6 +117,9 @@ class Insight(SQLModel, table=True):
     relevance_score: int = Field(index=True)
     category: str = Field(index=True)        # stores Category.value (trading style)
     approaches: str = "[]"                    # JSON array of Approach.value, e.g. ["Agentic AI"]
+    item_type: str = Field(default="tooling", index=True)  # stores ItemType.value
+    region: str = Field(default="Global", index=True)      # stores Region.value
+    workflow_stage: str | None = None         # stores WorkflowStage.value; only for launch-ish items
     technical_summary: str
     trader_impact: str
     model_used: str = ""
@@ -127,6 +160,22 @@ class InsightExtraction(BaseModel):
         default_factory=list,
         description="The 0-2 kinds of tech this item uses (Agentic AI, Machine Learning, "
         "Automation, Sentiment & News, Infrastructure & Data, Risk & Sizing). Empty if none fit.",
+    )
+    item_type: ItemType = PydField(
+        default=ItemType.TOOLING,
+        description="What kind of item this is: launch (a product/feature a trader can use now), "
+        "funding (a raise/acquisition), early_stage (announced/beta/waitlist), research, "
+        "discussion, or tooling (default). Use launch/funding/early_stage only for genuine news.",
+    )
+    region: Region = PydField(
+        default=Region.GLOBAL,
+        description="India if the item is about Indian markets (NSE/BSE, Nifty/Bank Nifty, "
+        "Zerodha/Upstox/Dhan, SEBI, Indian fintechs) or by/for Indian traders; otherwise Global.",
+    )
+    workflow_stage: WorkflowStage | None = PydField(
+        default=None,
+        description="Only for launch/funding/early_stage items: which part of the trading workflow "
+        "it touches — Research, Signal Generation, Execution, Risk, or Monitoring. Null otherwise.",
     )
     technical_summary: str = PydField(
         description="2-3 plain-English sentences a self-directed trader would understand: what it "

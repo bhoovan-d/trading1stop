@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 
 from ..config import COMMUNITY_SOURCES
 from ..db import get_engine
-from ..models import Approach, Category, Insight, RawItem
+from ..models import Approach, Category, Insight, ItemType, RawItem, Region
 from ..newsletter.generate import available_dates, markdown_for_date
 from .schemas import InsightOut, InsightPage, MetaOut, NewsletterList, NewsletterOut, SourceHealthOut
 
@@ -28,6 +28,8 @@ def _apply_filters(
     *,
     category: str | None,
     approach: str | None,
+    item_type: str | None,
+    region: str | None,
     min_score: int | None,
     source: str | None,
     stream: str | None,
@@ -40,6 +42,10 @@ def _apply_filters(
     if approach:
         # approaches is a JSON array string, e.g. ["Agentic AI"]; match the quoted token.
         stmt = stmt.where(Insight.approaches.contains(f'"{approach}"'))
+    if item_type:
+        stmt = stmt.where(Insight.item_type == item_type)
+    if region:
+        stmt = stmt.where(Insight.region == region)
     if min_score is not None:
         stmt = stmt.where(Insight.relevance_score >= min_score)
     if source:
@@ -69,6 +75,8 @@ def list_insights(
     session: Session = Depends(get_session),
     category: str | None = Query(None),
     approach: str | None = Query(None),
+    item_type: str | None = Query(None),
+    region: str | None = Query(None),
     min_score: int | None = Query(None, ge=1, le=10),
     source: str | None = Query(None),
     stream: str | None = Query(None, pattern="^(alpha|community)$"),
@@ -80,7 +88,8 @@ def list_insights(
     page_size: int = Query(20, ge=1, le=100),
 ) -> InsightPage:
     filters = dict(
-        category=category, approach=approach, min_score=min_score, source=source, stream=stream,
+        category=category, approach=approach, item_type=item_type, region=region,
+        min_score=min_score, source=source, stream=stream,
         date_from=date_from, date_to=date_to, q=q,
     )
 
@@ -137,6 +146,8 @@ def meta(session: Session = Depends(get_session)) -> MetaOut:
     return MetaOut(
         categories=[c.value for c in Category],
         approaches=[a.value for a in Approach],
+        item_types=[t.value for t in ItemType],
+        regions=[r.value for r in Region],
         sources=sorted(sources),
         score_min=score_min or 1,
         score_max=score_max or 10,

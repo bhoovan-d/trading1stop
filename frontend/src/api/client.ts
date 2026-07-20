@@ -12,6 +12,8 @@ async function getJSON<T>(url: string): Promise<T> {
 export interface Filters {
   category?: string;
   approach?: string;
+  item_type?: string;
+  region?: string;
   min_score?: number;
   source?: string;
   stream?: "alpha" | "community";

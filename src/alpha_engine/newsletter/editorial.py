@@ -13,9 +13,13 @@ fails — the renderer then uses the technical fields and a deterministic taglin
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 from ..intelligence.provider import CascadeProvider
 from ..models import Insight, RawItem
+
+if TYPE_CHECKING:
+    from .generate import Sections
 
 Row = tuple[Insight, RawItem]
 
@@ -46,38 +50,41 @@ Return only the sentence.
 """
 
 EDITORIAL_SYSTEM_PROMPT = """\
-You are the editor of a daily intelligence brief on how AI/ML is reshaping the trading process. \
-Your readers are independent and retail algo-traders — technically literate but NOT academics. \
-Your voice is calm, editorial, and curated: you explain, you never hype or market.
+You are the editor of a daily intelligence brief on how AI is helping people trade. Your readers \
+are ACTIVE TRADERS — technical, algo, macro, and desk traders — technically literate but NOT ML \
+researchers. Your voice is calm, editorial, and curated: you explain, you never hype or market.
 
-Your job: turn dense, jargon-heavy research notes into clear, informative editorial copy. For \
-every pick, explain in plain language WHAT it is and WHY a trader should care — the capability, \
-edge, or risk it changes. Translate or omit jargon (no bare terms like "H^2_T", "Malliavin-\
-Sobolev", "square-integrable predictable processes"); if a concept matters, explain it in a few \
-plain words. Lead with meaning, not mechanism. Be concrete and specific to each pick — never \
-generic filler.
+You are writing copy to SELL this brief to everyday traders, so PLAIN LANGUAGE is the rule. Turn \
+dense notes into clear editorial copy: for every pick, explain in plain words WHAT it is and WHY a \
+trader should care — the capability, edge, or risk it changes. No unexplained jargon; if a concept \
+matters, gloss it in a few plain words (never bare terms like "H^2_T" or "square-integrable \
+processes"). Lead with meaning, not mechanism. A non-expert must get each line in ONE read.
 
-You will receive today's picks, each with an id, a tier (lead | notable | in_brief), and its raw \
-technical notes. Return STRICT JSON and nothing else — no markdown fences, no prose around it — \
-in exactly this shape:
+You will receive today's picks, each with an id, a section (launch | strategy | india | \
+watch_list), and its raw notes. Return STRICT JSON and nothing else — no markdown fences, no prose \
+around it — in exactly this shape:
 {
   "editor_note": "<2-3 sentences of narrative synthesis>",
   "picks": {
     "<id>": {"summary": "<editorial copy for that pick>"}
+  },
+  "worth_trying": {
+    "<id>": {"why": "<1 sentence: why a trader should actually test this now>"}
   }
 }
 
-EDITOR'S NOTE rules: 2-3 sentences that name the SPECIFIC threads connecting today's picks and \
-why they matter now. BANNED filler: "significant developments", "gain a more nuanced \
-understanding", "make more informed decisions", "reduce operational costs", "competitive edge", \
-"stay ahead", "leveraging these". Say something a knowledgeable editor would actually write.
-Example of the register: "Two currents run through today's picks: neural-operator models are \
-maturing into practical hedging tools, and agentic frameworks are closing the loop from research \
-to backtest. Both chip away at work desks still do by hand."
+EDITOR'S NOTE rules: 2-3 sentences naming the SPECIFIC threads across today's picks and why they \
+matter now. BANNED filler: "significant developments", "gain a more nuanced understanding", "make \
+more informed decisions", "competitive edge", "stay ahead", "leveraging these". Write what a \
+knowledgeable editor would actually say.
 
-Length per tier: lead summary = 2-4 informative sentences; notable summary = 1 sentence; \
-in_brief summary = 1 short clause (under ~20 words). Include every pick id you are given. Do not \
-restate the title. No trailing commentary outside the JSON.
+WORTH TRYING: choose 1-3 pick ids a trader could realistically install, sign up for, or try THIS \
+WEEK — favour shipped launches and ready-to-use tools over research. One plain sentence each on why.
+
+Length per section: launch summary = 2-3 informative sentences; strategy / india summary = 1 \
+sentence; watch_list summary = 1 short clause (under ~20 words) with a skeptical, not-yet-proven \
+framing. Include every pick id you are given in "picks". Do not restate the title. No commentary \
+outside the JSON.
 """
 
 
@@ -91,22 +98,47 @@ def build_theme_prompt(picks: list[Row]) -> str:
     return "\n".join(lines)
 
 
-def _pick_lines(insight: Insight, raw: RawItem, tier: str) -> list[str]:
-    return [
+def _pick_lines(insight: Insight, raw: RawItem, section: str) -> list[str]:
+    lines = [
         f"- id: {insight.id}",
-        f"  tier: {tier}",
+        f"  section: {section}",
         f"  category: {insight.category}",
+        f"  item_type: {getattr(insight, 'item_type', 'tooling')}",
+        f"  region: {getattr(insight, 'region', 'Global')}",
+    ]
+    stage = getattr(insight, "workflow_stage", None)
+    if stage:
+        lines.append(f"  workflow_stage: {stage}")
+    lines += [
         f"  title: {raw.title}",
         f"  technical_notes: {insight.technical_summary.strip()}",
         f"  trader_impact: {insight.trader_impact.strip()}",
     ]
+    return lines
 
 
-def build_editorial_prompt(lead: list[Row], notable: list[Row], in_brief: list[Row]) -> str:
+def _sectioned_picks(sec: "Sections") -> list[tuple[str, Row]]:
+    """Every selected row paired with its section label, de-duplicated (launch/watch/india/strategy)."""
+    seen: set[int] = set()
+    out: list[tuple[str, Row]] = []
+    groups = [
+        ("launch", sec.launches),
+        ("watch_list", sec.watch_list),
+        ("india", sec.india),
+        ("strategy", [r for rows in sec.strategy.values() for r in rows] + sec.quant_firms),
+    ]
+    for label, rows in groups:
+        for row in rows:
+            if id(row) not in seen:
+                seen.add(id(row))
+                out.append((label, row))
+    return out
+
+
+def build_editorial_prompt(sec: "Sections") -> str:
     lines = ["Today's picks:", ""]
-    for tier, rows in (("lead", lead), ("notable", notable), ("in_brief", in_brief)):
-        for insight, raw in rows:
-            lines += _pick_lines(insight, raw, tier)
+    for label, (insight, raw) in _sectioned_picks(sec):
+        lines += _pick_lines(insight, raw, label)
     lines.append("")
     lines.append("Return the JSON editorial payload.")
     return "\n".join(lines)
@@ -146,29 +178,39 @@ def _parse_body(text: str) -> dict:
             if isinstance(summary, str) and summary.strip():
                 picks[str(key)] = {"summary": _clean(summary)}
     out["picks"] = picks
+    worth: dict[str, dict] = {}
+    worth_in = data.get("worth_trying")
+    if isinstance(worth_in, dict):
+        for key, val in worth_in.items():
+            why = val.get("why") if isinstance(val, dict) else val
+            if isinstance(why, str) and why.strip():
+                worth[str(key)] = {"why": _clean(why)}
+    if worth:
+        out["worth_trying"] = worth
     return out
 
 
 def generate_editorial(
-    lead: list[Row],
-    notable: list[Row],
-    in_brief: list[Row],
+    sec: "Sections",
     provider: CascadeProvider,
 ) -> tuple[dict, str] | None:
     """Return (payload, model_used) for the day's picks, or None if unavailable/all failed.
 
-    Two calls: a focused theme call (sharper headlines) and one editorial call for the note +
-    per-pick copy. Each degrades independently; a payload is returned if either succeeds.
+    Two calls: a focused theme call (sharper headlines) and one editorial call for the note,
+    per-pick copy, and Worth-Trying picks. Each degrades independently; a payload is returned if
+    either succeeds. The payload carries ``version: 2``.
     """
-    picks = lead + notable + in_brief
-    if not picks or not provider.available:
+    all_rows = [row for _, row in _sectioned_picks(sec)]
+    if not all_rows or not provider.available:
         return None
 
-    payload: dict = {"picks": {}}
+    payload: dict = {"version": 2, "picks": {}}
     model_used = ""
 
+    # Lead the theme call with the flagship sections (launches + India), else fall back to all.
+    theme_rows = sec.launches + sec.india or all_rows
     theme_res = provider.summarize(
-        build_theme_prompt(lead + notable), system=THEME_SYSTEM_PROMPT, max_tokens=120
+        build_theme_prompt(theme_rows), system=THEME_SYSTEM_PROMPT, max_tokens=120
     )
     if theme_res is not None:
         theme = _clean(theme_res[0]).strip('"').strip()
@@ -177,9 +219,9 @@ def generate_editorial(
             model_used = theme_res[1]
 
     body_res = provider.summarize(
-        build_editorial_prompt(lead, notable, in_brief),
+        build_editorial_prompt(sec),
         system=EDITORIAL_SYSTEM_PROMPT,
-        max_tokens=1000,
+        max_tokens=1100,
     )
     if body_res is not None:
         payload.update(_parse_body(body_res[0]))
