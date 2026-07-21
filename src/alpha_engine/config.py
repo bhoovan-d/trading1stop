@@ -91,7 +91,7 @@ class Settings(BaseSettings):
     # Tunables
     database_url: str | None = None
     db_path: str = "data/alpha.db"
-    max_items_per_source: int = 25
+    max_items_per_source: int = 15
     newsletter_dir: str = "data/newsletters"
     frontend_origin: str = "http://localhost:5173"
 
@@ -135,10 +135,36 @@ class RedditSources(BaseModel):
 class RssFeed(BaseModel):
     name: str
     url: str
+    # Ingest-time topic screen: "ai" keeps only items mentioning an AI/automation term,
+    # "markets" keeps only items mentioning a markets/trading term. None -> no screen.
+    screen: str | None = None
+
+
+# Default keyword groups for the RSS ingest screen. Broad on purpose (a miss just costs one
+# item); editable per-deployment via the `screen_keywords_ai` / `screen_keywords_markets`
+# blocks in sources.yaml.
+_DEFAULT_SCREEN_KEYWORDS_AI = [
+    "ai", "artificial intelligence", "machine learning", "ml", "deep learning", "neural",
+    "llm", "llms", "gpt", "generative", "algorithm", "algorithms", "algorithmic", "algo",
+    "algos", "automation", "automated", "bot", "bots", "agent", "agents", "agentic",
+    "copilot", "quant", "quantitative", "predictive", "data-driven",
+]
+_DEFAULT_SCREEN_KEYWORDS_MARKETS = [
+    "trading", "trade", "trades", "trader", "traders", "market", "markets", "stock", "stocks",
+    "equity", "equities", "share", "shares", "option", "options", "futures", "forex", "fx",
+    "portfolio", "portfolios", "broker", "brokers", "brokerage", "exchange", "exchanges",
+    "investing", "investment", "investments", "investor", "investors", "derivative",
+    "derivatives", "etf", "etfs", "alpha", "backtest", "hedge fund", "crypto", "nifty",
+    "sensex", "nse", "bse", "sebi", "zerodha", "upstox",
+]
 
 
 class RssSources(BaseModel):
     feeds: list[RssFeed] = Field(default_factory=list)
+    screen_keywords_ai: list[str] = Field(default_factory=lambda: list(_DEFAULT_SCREEN_KEYWORDS_AI))
+    screen_keywords_markets: list[str] = Field(
+        default_factory=lambda: list(_DEFAULT_SCREEN_KEYWORDS_MARKETS)
+    )
 
 
 class ForumSource(BaseModel):

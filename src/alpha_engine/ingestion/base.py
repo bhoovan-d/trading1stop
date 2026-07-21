@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from datetime import datetime
+from functools import lru_cache
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -48,3 +50,26 @@ def truncate(text: str, limit: int = 8000) -> str:
     """Keep item bodies bounded so LLM calls stay cheap and within limits."""
     text = text or ""
     return text if len(text) <= limit else text[:limit] + "\n…[truncated]"
+
+
+@lru_cache(maxsize=512)
+def _keyword_pattern(keywords: tuple[str, ...]) -> re.Pattern[str]:
+    """A single case-insensitive, word-boundary alternation for the keyword set.
+
+    Word boundaries are essential: a naive substring test makes short tokens like "ai", "ml",
+    or "nse" match inside ordinary words ("retail", "html", "sense"), which would pass almost
+    everything. ``\\b`` makes each keyword match only as a whole word/phrase.
+    """
+    parts = [re.escape(k.strip()) for k in keywords if k and k.strip()]
+    return re.compile(r"\b(?:" + "|".join(parts) + r")\b", re.IGNORECASE)
+
+
+def matches_keywords(text: str, keywords: list[str]) -> bool:
+    """True if ``text`` contains any keyword as a whole word/phrase. Empty list -> True.
+
+    Used as a cheap ingest-time topic screen so off-topic items never reach the LLM.
+    """
+    if not keywords:
+        return True
+    pattern = _keyword_pattern(tuple(keywords))
+    return pattern.search(text or "") is not None

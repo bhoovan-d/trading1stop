@@ -12,7 +12,7 @@ import feedparser
 from loguru import logger
 
 from ..config import RssSources, Settings
-from .base import RawItemDraft, Source, truncate
+from .base import RawItemDraft, Source, matches_keywords, truncate
 
 # Some hosts (notably Reddit) rate-limit anonymous/generic-agent requests aggressively.
 # A descriptive User-Agent plus a small pause between feed fetches keeps every run polite.
@@ -42,6 +42,14 @@ class RssSource(Source):
         self.settings = settings
         self.cfg = sources
 
+    def _screen_keywords(self, feed) -> list[str] | None:
+        """The keyword group a feed's ``screen`` mode selects, or None for no screen."""
+        if feed.screen == "ai":
+            return self.cfg.screen_keywords_ai
+        if feed.screen == "markets":
+            return self.cfg.screen_keywords_markets
+        return None
+
     def fetch(self) -> Iterable[RawItemDraft]:
         limit = self.settings.max_items_per_source
         for i, feed in enumerate(self.cfg.feeds):
@@ -56,18 +64,27 @@ class RssSource(Source):
                 logger.warning(f"[rss] {feed.name} returned no entries ({feed.url}).")
                 continue
 
+            screen = self._screen_keywords(feed)
+            kept = 0
             for entry in islice(parsed.entries, limit):
                 link = getattr(entry, "link", "") or ""
                 ext_id = getattr(entry, "id", "") or link
                 if not ext_id:
                     continue
+                body = truncate(_entry_body(entry))
+                # Topic screen: drop off-topic items before they ever reach the LLM.
+                if screen is not None and not matches_keywords(
+                    f"{getattr(entry, 'title', '')} {body}", screen
+                ):
+                    continue
+                kept += 1
                 yield RawItemDraft(
                     source=self.source,
                     source_key=f"rss:{feed.url}",
                     external_id=f"rss:{ext_id}",
                     url=link,
                     title=f"[{feed.name}] {getattr(entry, 'title', 'untitled')}",
-                    body=truncate(_entry_body(entry)),
+                    body=body,
                     author=getattr(entry, "author", None),
                     created_at=_to_dt(
                         getattr(entry, "published_parsed", None)
@@ -75,3 +92,5 @@ class RssSource(Source):
                     ),
                     raw={"feed": feed.name},
                 )
+            if screen is not None:
+                logger.info(f"[rss] {feed.name} screen='{feed.screen}' kept {kept} item(s).")
