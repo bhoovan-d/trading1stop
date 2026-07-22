@@ -65,6 +65,15 @@ rss:
       url: "https://hnrss.org/newest?q=algorithmic%20trading"
     - name: "Hacker News: quant"
       url: "https://hnrss.org/newest?q=quant%20finance"
+    # ── Capital-markets & trading trade press — launches + funding (screen: markets) ──
+    # (The TRADE / thetradenews.com omitted — its /feed/ returns no parseable entries. Finextra
+    # Markets + Crunchbase News verified live. Add more capital-markets feeds the same way.)
+    - name: "Finextra Markets"
+      url: "https://www.finextra.com/rss/channel.aspx?channel=markets"
+      screen: markets
+    - name: "Crunchbase News"
+      url: "https://news.crunchbase.com/feed/"
+      screen: markets
 
   # Ingest screen keyword groups. Matched case-insensitively as whole WORDS (word boundaries),
   # so short tokens like "ai"/"nse" don't match inside "retail"/"sense". Include plural forms
@@ -195,12 +204,22 @@ careers:
   # "Quant Firms" category (routine listings are filtered; team build-outs / tech-stack signals
   # survive). `ats` is one of greenhouse | lever | ashby; `token` is the firm's public board slug.
   # Tokens below were verified live (2026-07); add lever/ashby firms the same way.
-  # Trimmed to 6 top, mainstream-recognizable quant/HFT firms (resource reduction).
+  # Mainstream quant/HFT firms (global) + India quant/HFT firms. `token` is the firm's public
+  # ATS board slug. India firms feed the /jobs + /india tabs; the LLM region-tags by job location.
+  # Graviton & AlphaGrep are Greenhouse-confirmed; the other India firms are best-effort — verify
+  # each with `ingest-only -s careers` and drop any that 404 or use a non-ATS careers page.
   enabled: true
   firms:
+    # Global
     - { firm: "Jane Street", ats: greenhouse, token: janestreet }
     - { firm: "Jump Trading", ats: greenhouse, token: jumptrading }
     - { firm: "DRW", ats: greenhouse, token: drweng }
     - { firm: "IMC Trading", ats: greenhouse, token: imc }
     - { firm: "Tower Research Capital", ats: greenhouse, token: towerresearchcapital }
     - { firm: "Point72 / Cubist", ats: greenhouse, token: point72 }
+    # India-heavy (verified live on Greenhouse — Graviton lists Gurugram/Gandhinagar roles,
+    # WorldQuant has Bengaluru/Mumbai offices; the LLM region-tags by each posting's location).
+    - { firm: "Graviton Research Capital", ats: greenhouse, token: gravitonresearchcapital }
+    - { firm: "AlphaGrep Securities", ats: greenhouse, token: alphagrepsecurities }
+    - { firm: "WorldQuant", ats: greenhouse, token: worldquant }
+    # NOTE: Quadeye removed — no public Greenhouse board (404). Re-add if it exposes an ATS feed.

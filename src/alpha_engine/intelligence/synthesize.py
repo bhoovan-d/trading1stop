@@ -53,7 +53,9 @@ def run_synthesis(
         return community_threshold if source in COMMUNITY_SOURCES else alpha_threshold
 
     with session_scope() as session:
-        items = repository.get_unprocessed(session, limit=limit)
+        # When a per-run cap is set, score the FRESHEST items first so the rolling best-of
+        # window reflects current content (older leftovers are retried on later runs).
+        items = repository.get_unprocessed(session, limit=limit, newest_first=limit is not None)
         if not items:
             logger.info("[synthesis] nothing to process.")
             return stats

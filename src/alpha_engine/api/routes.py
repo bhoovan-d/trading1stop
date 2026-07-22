@@ -43,7 +43,9 @@ def _apply_filters(
         # approaches is a JSON array string, e.g. ["Agentic AI"]; match the quoted token.
         stmt = stmt.where(Insight.approaches.contains(f'"{approach}"'))
     if item_type:
-        stmt = stmt.where(Insight.item_type == item_type)
+        # Accept a comma-separated list ("launch,funding") so one view can span item types.
+        types = [t for t in item_type.split(",") if t]
+        stmt = stmt.where(Insight.item_type.in_(types))
     if region:
         stmt = stmt.where(Insight.region == region)
     if min_score is not None:

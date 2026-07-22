@@ -70,15 +70,23 @@ ITEM_TYPE — what KIND of item this is (pick ONE):
   feature that has SHIPPED and a trader can use now.
 - "funding": a funding round, raise, or acquisition of a trading/fintech company.
 - "early_stage": announced, in beta, or waitlist-only — not generally usable yet.
+- "hiring": a job posting or open role at a trading, quant, or HFT firm.
 - "research": a paper, method, backtest, or model write-up (these usually score low — see above).
 - "discussion": a community thread, question, or experience report.
 - "tooling": an update to an existing open-source project, library, or piece of infrastructure. \
   This is the DEFAULT when nothing else clearly fits.
 
+CAPITAL MARKETS FOCUS — for launch / funding items, strongly PREFER capital-markets & trading \
+ventures: exchanges, brokers, trading platforms, execution/OMS/EMS, market-data & analytics, \
+clearing/settlement, custody, prime brokerage, trading infrastructure, and prop/quant tooling. \
+DE-SCORE (1-4) consumer fintech with no trading angle — payments, lending, neobanks, insurance, \
+personal-finance/budgeting, remittances — unless it directly serves traders or the markets.
+
 REGION — is this about India or global?
 - "India": Indian markets (NSE/BSE, Nifty, Bank Nifty, Sensex), Indian brokers/platforms \
-  (Zerodha, Upstox, Dhan, Angel One, Groww, Kite, Tradetron), SEBI, Indian fintechs, or content \
-  clearly by/for Indian traders.
+  (Zerodha, Upstox, Dhan, Angel One, Groww, Kite, Tradetron), SEBI, Indian fintechs, content \
+  clearly by/for Indian traders, OR a company/job posting physically located in India (Bengaluru, \
+  Mumbai, Gurugram/Gurgaon, Delhi/NCR, Hyderabad, Pune, Chennai) — even for a global firm's India office.
 - "Global": everything else. When unsure, pick "Global".
 
 WORKFLOW_STAGE — ONLY for launch / funding / early_stage items, which part of the trading workflow \
@@ -107,7 +115,7 @@ these keys:
   "relevance_score": <integer 1-10>,
   "category": "<one of exactly: Technical Analysis | Macro Analysis | Intraday Trading | Swing Trading | Fundamental Analysis | Quant Firms>",
   "approaches": ["<0-2 of exactly: Agentic AI | Machine Learning | Automation | Sentiment & News | Infrastructure & Data | Risk & Sizing>"],
-  "item_type": "<one of exactly: launch | funding | early_stage | research | discussion | tooling>",
+  "item_type": "<one of exactly: launch | funding | early_stage | hiring | research | discussion | tooling>",
   "region": "<one of exactly: India | Global>",
   "workflow_stage": "<one of exactly: Research | Signal Generation | Execution | Risk | Monitoring, or null unless item_type is launch/funding/early_stage>",
   "technical_summary": "<2-3 plain-English sentences a trader would understand, jargon explained>",

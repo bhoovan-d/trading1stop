@@ -110,6 +110,16 @@ def test_new_axes_synonyms():
     assert out.workflow_stage == WorkflowStage.EXECUTION
 
 
+def test_hiring_item_type_and_synonym():
+    p = _provider_returning(
+        '{"relevance_score": 8, "category": "Quant Firms", "item_type": "job posting", '
+        '"technical_summary": "s", "trader_impact": "i"}'
+    )
+    out = p.extract(ITEM)
+    assert out is not None
+    assert out.item_type == ItemType.HIRING  # "job posting" synonym -> hiring
+
+
 def test_workflow_stage_dropped_for_non_launch_item():
     # a research/tooling item never carries a workflow_stage even if the model emits one
     p = _provider_returning(

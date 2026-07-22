@@ -103,6 +103,22 @@ def test_render_includes_all_sections():
     assert "not vetted" in md
 
 
+def test_hiring_section_renders_and_excluded_from_what_changed():
+    rows = [
+        _row(1, item_type="hiring", category="Quant Firms", score=9, source="careers"),
+        _row(2, item_type="launch", score=8),
+    ]
+    sec = gen._select(rows)
+    assert [i.id for i, _ in sec.hiring] == [1]
+    assert sec.quant_firms == []  # the job did NOT fall into the Quant Firms sub-block
+    md = gen._render(date(2026, 7, 21), rows)
+    assert "## Now Hiring" in md
+    # the hiring item's "you can now do thing 1" line must NOT appear under What Changed
+    what_changed = md.split("## What Changed for Traders")[1].split("##")[0]
+    assert "thing 1" not in what_changed
+    assert "thing 2" in what_changed  # the launch still appears
+
+
 def test_india_section_omitted_when_empty():
     rows = [_row(1, item_type="launch", score=9)]
     md = gen._render(date(2026, 7, 21), rows)

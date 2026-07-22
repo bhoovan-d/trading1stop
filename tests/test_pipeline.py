@@ -128,6 +128,58 @@ def test_reclassify_reset_reprocesses_everything(temp_db):
         assert len(s.exec(select(RawItem).where(RawItem.processed == False)).all()) == 3  # noqa: E712
 
 
+def test_careers_source_forced_to_hiring(temp_db):
+    """A careers item is persisted as item_type=hiring even if the provider says otherwise."""
+    with db.session_scope() as s:
+        repository.save_raw(s, [
+            RawItemDraft(source="careers", external_id="j1", url="u", title="KEEP Quant Researcher",
+                         body="Location: Bengaluru"),
+        ])
+    run_synthesis(provider=CascadeProvider([FakeProvider()]))  # FakeProvider returns item_type default (tooling)
+    with db.session_scope() as s:
+        insight = s.exec(select(Insight)).one()
+        assert insight.item_type == "hiring"
+        assert insight.workflow_stage is None
+
+
+def test_processing_cap_scores_newest_first(temp_db):
+    import time
+    with db.session_scope() as s:
+        for n in range(5):
+            repository.save_raw(s, [
+                RawItemDraft(source="rss", external_id=f"KEEP-{n}", url="u", title=f"KEEP {n}", body="b"),
+            ])
+            time.sleep(0.01)  # ensure distinct fetched_at ordering
+    # Cap to 2 → only the 2 newest unprocessed items get scored this run.
+    stats = run_synthesis(provider=CascadeProvider([FakeProvider()]), limit=2)
+    assert stats.considered == 2
+    with db.session_scope() as s:
+        processed = s.exec(select(RawItem).where(RawItem.processed == True)).all()  # noqa: E712
+        assert {r.external_id for r in processed} == {"KEEP-3", "KEEP-4"}  # newest two
+
+
+def test_prune_insights_keeps_top_n(temp_db):
+    with db.session_scope() as s:
+        repository.save_raw(s, [
+            RawItemDraft(source="rss", external_id=f"KEEP-{n}", url="u", title=f"KEEP {n}", body="b")
+            for n in range(4)
+        ])
+    # FakeProvider scores all KEEP items 9; give them distinct scores via direct insert instead.
+    with db.session_scope() as s:
+        raws = s.exec(select(RawItem)).all()
+        for score, r in zip((10, 9, 8, 7), raws):
+            s.add(Insight(raw_item_id=r.id, relevance_score=score, category="Technical Analysis",
+                          technical_summary="t", trader_impact="i", model_used="x"))
+    with db.session_scope() as s:
+        deleted = repository.prune_insights(s, alpha_keep=2, community_keep=0)
+    assert deleted == 2
+    with db.session_scope() as s:
+        scores = sorted(i.relevance_score for i in s.exec(select(Insight)).all())
+        assert scores == [9, 10]  # the two highest survived
+        # RawItems untouched (never re-scored)
+        assert len(s.exec(select(RawItem)).all()) == 4
+
+
 def test_discovered_source_promotes_after_three_qualifying_insights(temp_db):
     drafts = [
         RawItemDraft(

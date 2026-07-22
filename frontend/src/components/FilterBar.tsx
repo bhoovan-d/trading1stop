@@ -24,6 +24,8 @@ interface Props {
   onClear: () => void;
   // Hide the category facet row when the view is locked to a single category (e.g. Quant Firms tab).
   hideCategories?: boolean;
+  // Hide the Type filter when the view is locked to an item_type (e.g. Launches / Jobs tabs).
+  hideItemType?: boolean;
 }
 
 // ── Timeframe presets (replace native date pickers) ────────────────────────────
@@ -147,7 +149,7 @@ const SCORE_OPTS = [
   { value: "10", label: "10" },
 ];
 
-export function FilterBar({ values, meta, active, onChange, onApplyMany, onClear, hideCategories }: Props) {
+export function FilterBar({ values, meta, active, onChange, onApplyMany, onClear, hideCategories, hideItemType }: Props) {
   const [q, setQ] = useState(values.q);
 
   // keep local search in sync when cleared/navigated externally
@@ -251,7 +253,7 @@ export function FilterBar({ values, meta, active, onChange, onApplyMany, onClear
                 />
               </Field>
 
-              {itemTypes.length > 0 && (
+              {itemTypes.length > 0 && !hideItemType && (
                 <Field label="Type">
                   <div className="flex flex-wrap gap-1.5">
                     <Pill label="All" selected={values.item_type === ""} onClick={() => onChange("item_type", "")} />

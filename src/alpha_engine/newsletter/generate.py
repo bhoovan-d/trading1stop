@@ -23,6 +23,7 @@ from ..storage import repository
 # lives in the browsable feed. The brief now leads with product news, then strategy, then picks.
 WATCH_LIST_COUNT = 3      # early-stage (beta / waitlist / just-announced), flagged not vetted
 LAUNCH_COUNT = 4          # shipped launches + funding
+HIRING_COUNT = 3          # job postings at quant / HFT firms (India + global)
 INDIA_COUNT = 3           # India-focused items (incl. the community carve-out below)
 PER_BUCKET_COUNT = 2      # items per strategy bucket (Technical / Macro / Sentiment / Fundamental)
 QUANT_FIRMS_COUNT = 2     # "From the Quant Firms" sub-block
@@ -56,6 +57,7 @@ class Sections:
 
     launches: list[Row] = field(default_factory=list)
     watch_list: list[Row] = field(default_factory=list)
+    hiring: list[Row] = field(default_factory=list)
     india: list[Row] = field(default_factory=list)
     strategy: dict[str, list[Row]] = field(default_factory=dict)  # bucket -> rows
     quant_firms: list[Row] = field(default_factory=list)
@@ -66,7 +68,7 @@ class Sections:
         seen: set[int] = set()
         out: list[Row] = []
         buckets = [r for rows in self.strategy.values() for r in rows]
-        for row in [*self.launches, *self.watch_list, *self.india, *buckets, *self.quant_firms]:
+        for row in [*self.launches, *self.watch_list, *self.hiring, *self.india, *buckets, *self.quant_firms]:
             if id(row) not in seen:
                 seen.add(id(row))
                 out.append(row)
@@ -158,6 +160,9 @@ def _select(rows: list[Row]) -> Sections:
     sec.india = take(lambda r: _region(r[0]) == "India", INDIA_COUNT)
     sec.watch_list = take(lambda r: _item_type(r[0]) == "early_stage", WATCH_LIST_COUNT)
     sec.launches = take(lambda r: _item_type(r[0]) in _LAUNCH_TYPES, LAUNCH_COUNT)
+    # Claim job postings before strategy bucketing so they land in "Now Hiring", not the
+    # "From the Quant Firms" sub-block (which then holds only firm blog/press).
+    sec.hiring = take(lambda r: _item_type(r[0]) == "hiring", HIRING_COUNT)
 
     # By Strategy Type — bucket the remainder; Quant Firms get their own sub-block.
     for row in rows:
@@ -244,6 +249,15 @@ def _compact_line(insight: Insight, raw: RawItem, label: str, clause: str) -> st
     return f"**{insight.relevance_score}/10** · {label} · [{_safe_title(raw)}]({raw.url}) — {clause}"
 
 
+def _job_location(raw: RawItem) -> str:
+    """Pull the Location out of a careers item's body header (see careers._compose_body)."""
+    head = (raw.body or "").split("\n\n", 1)[0]
+    for part in head.split(" · "):
+        if part.lower().startswith("location:"):
+            return part.split(":", 1)[1].strip()
+    return ""
+
+
 def _render(day: date, rows: list[Row], brief: dict | None = None) -> str:
     title = f"# Trading Alpha Brief — {day.isoformat()}"
     if not rows:
@@ -289,11 +303,12 @@ def _render(day: date, rows: list[Row], brief: dict | None = None) -> str:
                 clause = _copy_for(picks, insight) or _truncate_sentence(insight.trader_impact)
                 lines += [_compact_line(insight, raw, "Quant Firms", clause), ""]
 
-    # ── What Changed for Traders ────────────────────────────────────────────────
+    # ── What Changed for Traders (job postings excluded — a role isn't a trader capability) ──
     selected = sec.selected()
-    if selected:
+    what_changed = [(i, r) for i, r in selected if _item_type(i) != "hiring"]
+    if what_changed:
         lines += ["## What Changed for Traders", ""]
-        for insight, raw in selected:
+        for insight, raw in what_changed:
             clause = _truncate_sentence(insight.trader_impact)
             lines += [f"[{_safe_title(raw)}]({raw.url}) — {clause}", ""]
 
@@ -327,6 +342,14 @@ def _render(day: date, rows: list[Row], brief: dict | None = None) -> str:
                 + " (announced / beta / waitlist — flagged, not vetted)",
                 "",
             ]
+
+    # ── Now Hiring (quant / HFT roles, India + global) ──────────────────────────
+    if sec.hiring:
+        lines += ["## Now Hiring", ""]
+        for insight, raw in sec.hiring:
+            label = _job_location(raw) or ("India" if _region(insight) == "India" else "Hiring")
+            clause = _copy_for(picks, insight) or _truncate_sentence(insight.technical_summary)
+            lines += [_compact_line(insight, raw, label, clause), ""]
 
     # ── India Watch (only when there's material) ────────────────────────────────
     if sec.india:

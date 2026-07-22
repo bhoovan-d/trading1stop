@@ -20,6 +20,8 @@ createRoot(document.getElementById("root")!).render(
         <Routes>
           <Route element={<Layout />}>
             <Route index element={<FeedPage stream="alpha" />} />
+            <Route path="launches" element={<FeedPage lockedItemType="launch,funding" />} />
+            <Route path="jobs" element={<FeedPage lockedItemType="hiring" />} />
             <Route path="quant-firms" element={<FeedPage lockedCategory="Quant Firms" />} />
             <Route path="india" element={<FeedPage lockedRegion="India" />} />
             <Route path="community" element={<FeedPage stream="community" />} />

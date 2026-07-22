@@ -5,9 +5,10 @@ from __future__ import annotations
 import json
 from datetime import date, datetime, timedelta, timezone
 
-from sqlalchemy import func, update as sa_update
+from sqlalchemy import delete as sa_delete, func, update as sa_update
 from sqlmodel import Session, select
 
+from ..config import COMMUNITY_SOURCES
 from ..ingestion.base import RawItemDraft
 from ..models import DailyBrief, Insight, InsightExtraction, RawItem, SourceRegistry
 
@@ -153,8 +154,11 @@ def suspend_low_signal_sources(session: Session, days: int = 30) -> int:
     return changed
 
 
-def get_unprocessed(session: Session, limit: int | None = None) -> list[RawItem]:
-    stmt = select(RawItem).where(RawItem.processed == False).order_by(RawItem.fetched_at)  # noqa: E712
+def get_unprocessed(
+    session: Session, limit: int | None = None, newest_first: bool = False
+) -> list[RawItem]:
+    order = RawItem.fetched_at.desc() if newest_first else RawItem.fetched_at
+    stmt = select(RawItem).where(RawItem.processed == False).order_by(order)  # noqa: E712
     if limit is not None:
         stmt = stmt.limit(limit)
     return list(session.exec(stmt).all())
@@ -181,20 +185,63 @@ def save_insight(
     extraction: InsightExtraction,
     model_used: str,
 ) -> Insight:
+    # A careers item is definitionally a job posting: force item_type=hiring (and clear the
+    # launch-only workflow_stage) regardless of what the LLM returned, so the /jobs view and the
+    # newsletter's Now-Hiring section populate reliably across every provider.
+    is_job = raw_item.source == "careers"
+    item_type = "hiring" if is_job else extraction.item_type.value
+    workflow_stage = None if is_job else (
+        extraction.workflow_stage.value if extraction.workflow_stage else None
+    )
     insight = Insight(
         raw_item_id=raw_item.id,  # type: ignore[arg-type]
         relevance_score=extraction.relevance_score,
         category=extraction.category.value,
         approaches=json.dumps([a.value for a in extraction.approaches]),
-        item_type=extraction.item_type.value,
+        item_type=item_type,
         region=extraction.region.value,
-        workflow_stage=extraction.workflow_stage.value if extraction.workflow_stage else None,
+        workflow_stage=workflow_stage,
         technical_summary=extraction.technical_summary,
         trader_impact=extraction.trader_impact,
         model_used=model_used,
     )
     session.add(insight)
     return insight
+
+
+def prune_insights(session: Session, alpha_keep: int, community_keep: int) -> int:
+    """Keep only the top-N insights per stream (by score, then recency); delete the rest.
+
+    Bounds what the site shows to a rolling "best of" window. Only ``Insight`` rows are removed —
+    their ``RawItem`` stays ``processed=True``, so pruned items are never re-ingested or re-scored
+    (no extra LLM cost). Returns the number of insights deleted.
+    """
+    deleted = 0
+    for is_community, keep in ((False, alpha_keep), (True, community_keep)):
+
+        def _stream(stmt):
+            return stmt.where(
+                RawItem.source.in_(COMMUNITY_SOURCES) if is_community
+                else RawItem.source.not_in(COMMUNITY_SOURCES)
+            )
+
+        keep_ids = set(
+            session.exec(
+                _stream(select(Insight.id).join(RawItem, Insight.raw_item_id == RawItem.id))
+                .order_by(Insight.relevance_score.desc(), Insight.created_at.desc())
+                .limit(max(0, keep))
+            ).all()
+        )
+        all_ids = set(
+            session.exec(
+                _stream(select(Insight.id).join(RawItem, Insight.raw_item_id == RawItem.id))
+            ).all()
+        )
+        to_delete = all_ids - keep_ids
+        if to_delete:
+            session.execute(sa_delete(Insight).where(Insight.id.in_(to_delete)))
+            deleted += len(to_delete)
+    return deleted
 
 
 def get_brief(session: Session, day: date) -> dict | None:

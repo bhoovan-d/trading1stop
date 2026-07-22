@@ -61,8 +61,8 @@ matters, gloss it in a few plain words (never bare terms like "H^2_T" or "square
 processes"). Lead with meaning, not mechanism. A non-expert must get each line in ONE read.
 
 You will receive today's picks, each with an id, a section (launch | strategy | india | \
-watch_list), and its raw notes. Return STRICT JSON and nothing else — no markdown fences, no prose \
-around it — in exactly this shape:
+watch_list | hiring), and its raw notes. Return STRICT JSON and nothing else — no markdown fences, \
+no prose around it — in exactly this shape:
 {
   "editor_note": "<2-3 sentences of narrative synthesis>",
   "picks": {
@@ -83,7 +83,8 @@ WEEK — favour shipped launches and ready-to-use tools over research. One plain
 
 Length per section: launch summary = 2-3 informative sentences; strategy / india summary = 1 \
 sentence; watch_list summary = 1 short clause (under ~20 words) with a skeptical, not-yet-proven \
-framing. Include every pick id you are given in "picks". Do not restate the title. No commentary \
+framing; hiring summary = 1 short clause naming the role/desk and what it signals the firm is \
+building. Include every pick id you are given in "picks". Do not restate the title. No commentary \
 outside the JSON.
 """
 
@@ -124,6 +125,7 @@ def _sectioned_picks(sec: "Sections") -> list[tuple[str, Row]]:
     groups = [
         ("launch", sec.launches),
         ("watch_list", sec.watch_list),
+        ("hiring", sec.hiring),
         ("india", sec.india),
         ("strategy", [r for rows in sec.strategy.values() for r in rows] + sec.quant_firms),
     ]

@@ -47,6 +47,8 @@ export function Layout() {
 
           <nav className="ml-auto flex items-center gap-1">
             <NavItem to="/" label="Feed" end />
+            <NavItem to="/launches" label="Launches" />
+            <NavItem to="/jobs" label="Jobs" />
             <NavItem to="/quant-firms" label="Quant Firms" />
             <NavItem to="/india" label="India" />
             <NavItem to="/community" label="Community" />

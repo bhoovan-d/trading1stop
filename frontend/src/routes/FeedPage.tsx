@@ -11,12 +11,20 @@ export function FeedPage({
   stream,
   lockedCategory,
   lockedRegion,
-}: { stream?: "alpha" | "community"; lockedCategory?: string; lockedRegion?: string } = {}) {
+  lockedItemType,
+}: {
+  stream?: "alpha" | "community";
+  lockedCategory?: string;
+  lockedRegion?: string;
+  lockedItemType?: string;
+} = {}) {
   const [params, setParams] = useSearchParams();
   const { data: meta } = useMeta();
   const isCommunity = stream === "community";
   const isFirms = lockedCategory != null;
   const isIndia = lockedRegion != null;
+  const isLaunches = lockedItemType === "launch,funding";
+  const isJobs = lockedItemType === "hiring";
 
   const values: FilterValues = {
     category: params.get("category") ?? "",
@@ -71,7 +79,7 @@ export function FeedPage({
   const { data, isLoading, isError, isPlaceholderData } = useInsights({
     category: lockedCategory ?? (values.category || undefined),
     approach: values.approach || undefined,
-    item_type: values.item_type || undefined,
+    item_type: lockedItemType ?? (values.item_type || undefined),
     region: lockedRegion ?? undefined,
     min_score: values.min_score ? Number(values.min_score) : undefined,
     source: values.source || undefined,
@@ -86,7 +94,34 @@ export function FeedPage({
 
   return (
     <div>
-      {isIndia ? (
+      {isLaunches ? (
+        <div className="mb-5 mt-6">
+          <h1
+            className="font-serif text-2xl font-semibold tracking-tight text-ink"
+            style={{ fontVariationSettings: '"opsz" 40' }}
+          >
+            New Launches &amp; Funding
+          </h1>
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted">
+            New products, platforms, and broker features that have shipped — plus funding rounds and
+            acquisitions — across capital markets &amp; trading. Consumer fintech (payments, lending)
+            is filtered out; this is what a trader can actually use or watch.
+          </p>
+        </div>
+      ) : isJobs ? (
+        <div className="mb-5 mt-6">
+          <h1
+            className="font-serif text-2xl font-semibold tracking-tight text-ink"
+            style={{ fontVariationSettings: '"opsz" 40' }}
+          >
+            Now Hiring
+          </h1>
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted">
+            Open roles at quant &amp; HFT firms — India and global. What top desks are building and
+            hiring for is a live signal of where the institutional edge is heading.
+          </p>
+        </div>
+      ) : isIndia ? (
         <div className="mb-5 mt-6">
           <h1
             className="font-serif text-2xl font-semibold tracking-tight text-ink"
@@ -158,6 +193,7 @@ export function FeedPage({
         onApplyMany={applyFilters}
         onClear={clearAll}
         hideCategories={isFirms}
+        hideItemType={isLaunches || isJobs}
       />
 
       <div className="mt-5">

@@ -43,11 +43,24 @@ def run_pipeline(
 ) -> dict:
     """Execute all four phases once. Returns a summary suitable for logging/JSON."""
     logger.info("=== pipeline run start ===")
+    settings = get_settings()
     ingest_counts = ingest(only=only)
 
     stats = SynthesisStats()
     if not skip_synthesis:
-        stats = run_synthesis()
+        # Hard per-run cap: score at most N freshest items, so a busy day never processes hundreds.
+        stats = run_synthesis(limit=settings.synthesis_max_per_run)
+
+    # Retention: keep only the top-N best insights per stream so the site stays a rolling
+    # "best of" set. Runs before the newsletter so the brief is built from the retained window.
+    with session_scope() as session:
+        pruned = repository.prune_insights(
+            session,
+            alpha_keep=settings.site_insight_target,
+            community_keep=settings.community_insight_target,
+        )
+    if pruned:
+        logger.info(f"[prune] removed {pruned} insight(s) beyond the top-N window.")
 
     newsletter_path = None
     if not skip_newsletter:
@@ -64,6 +77,7 @@ def run_pipeline(
         "failed": stats.failed,
         "by_tier": stats.by_tier,
         "newsletter": newsletter_path,
+        "pruned": pruned,
         "suspended_sources": suspended_sources,
     }
     logger.info(f"=== pipeline run done === {summary}")

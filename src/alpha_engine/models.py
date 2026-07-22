@@ -44,6 +44,7 @@ class ItemType(str, Enum):
     LAUNCH = "launch"            # a shipped product / feature / platform a trader can use now
     FUNDING = "funding"          # a funding round or acquisition of a trading-relevant company
     EARLY_STAGE = "early_stage"  # announced / beta / waitlist — not generally usable yet
+    HIRING = "hiring"            # a job posting / open role at a trading, quant, or HFT firm
     RESEARCH = "research"        # papers, methods, backtests, model write-ups
     DISCUSSION = "discussion"    # community threads, experience reports
     TOOLING = "tooling"          # updates to existing OSS / infra / tools (the default bucket)

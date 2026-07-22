@@ -45,6 +45,7 @@ export const ITEM_TYPE_LABEL: Record<string, string> = {
   launch: "Launch",
   funding: "Funding",
   early_stage: "Early Stage",
+  hiring: "Hiring",
   research: "Research",
   discussion: "Discussion",
   tooling: "Tooling",
@@ -56,5 +57,10 @@ export function itemTypeLabel(itemType: string): string {
 
 /** Non-default item types earn a badge on the card; tooling/discussion stay unbadged. */
 export function isBadgeItemType(itemType: string): boolean {
-  return itemType === "launch" || itemType === "funding" || itemType === "early_stage";
+  return (
+    itemType === "launch" ||
+    itemType === "funding" ||
+    itemType === "early_stage" ||
+    itemType === "hiring"
+  );
 }

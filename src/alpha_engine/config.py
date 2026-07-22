@@ -45,6 +45,13 @@ class Settings(BaseSettings):
     # simultaneous load per provider. The cascade rotates providers so load spreads across
     # all configured keys; add more free providers to raise the ceiling before rate limits.
     synthesis_workers: int = 6
+    # Bounded daily processing + a rolling "best of" site. The pipeline scores at most
+    # synthesis_max_per_run freshest items per run (never hundreds), then prunes the stored
+    # insights down to the top site_insight_target (alpha) / community_insight_target (community)
+    # by score+recency — so the webpage always shows ~the best, not an ever-growing pile.
+    synthesis_max_per_run: int = 60
+    site_insight_target: int = 40
+    community_insight_target: int = 20
 
     # Anthropic (reference; optional)
     anthropic_api_key: str | None = None
