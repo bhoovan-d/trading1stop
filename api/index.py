@@ -21,7 +21,7 @@ _SRC = Path(__file__).resolve().parent.parent / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from fastapi import FastAPI, Request  # noqa: E402
+from fastapi import FastAPI, HTTPException, Request  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
 _router_import_error: str | None = None
@@ -99,5 +99,18 @@ async def debug(request: Request) -> dict:
         "router_routes_count": len(router_routes),
         "router_routes": router_routes,
     }
+
+
+# Backstop SPA fallback: if Vercel routes a client-side path (/launches, /jobs, /india, …) to the
+# function instead of the static index.html, serve index.html so React Router can handle it. Kept
+# LAST so it never shadows the /api/* and /assets/* routes registered above.
+@app.get("/{full_path:path}")
+def serve_spa(full_path: str):
+    if full_path.startswith("api/") or full_path.startswith("assets/"):
+        raise HTTPException(status_code=404, detail="Not Found")
+    if os.path.exists("index.html"):
+        with open("index.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(f.read())
+    raise HTTPException(status_code=404, detail="Frontend index.html not found in lambda deployment")
 
 
