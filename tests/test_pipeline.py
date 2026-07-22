@@ -159,12 +159,12 @@ def test_processing_cap_scores_newest_first(temp_db):
 
 
 def test_prune_insights_keeps_top_n(temp_db):
+    titles = ["Alpha charting tool", "Beta options screener", "Gamma data feed", "Delta risk engine"]
     with db.session_scope() as s:
         repository.save_raw(s, [
-            RawItemDraft(source="rss", external_id=f"KEEP-{n}", url="u", title=f"KEEP {n}", body="b")
-            for n in range(4)
+            RawItemDraft(source="rss", external_id=f"KEEP-{n}", url="u", title=t, body="b")
+            for n, t in enumerate(titles)
         ])
-    # FakeProvider scores all KEEP items 9; give them distinct scores via direct insert instead.
     with db.session_scope() as s:
         raws = s.exec(select(RawItem)).all()
         for score, r in zip((10, 9, 8, 7), raws):
@@ -176,8 +176,35 @@ def test_prune_insights_keeps_top_n(temp_db):
     with db.session_scope() as s:
         scores = sorted(i.relevance_score for i in s.exec(select(Insight)).all())
         assert scores == [9, 10]  # the two highest survived
-        # RawItems untouched (never re-scored)
-        assert len(s.exec(select(RawItem)).all()) == 4
+        assert len(s.exec(select(RawItem)).all()) == 4  # RawItems untouched (never re-scored)
+
+
+def test_prune_collapses_duplicate_app_updates(temp_db):
+    """Repeated updates of the same app (e.g. successive freqtrade releases) collapse to one."""
+    items = [
+        ("f3", "[freqtrade/freqtrade] release 2026.3 — 2026.3", 9),
+        ("f6", "[freqtrade/freqtrade] release 2026.6 — 2026.6", 8),  # same app -> dropped
+        ("lean", "[QuantConnect/Lean] release 3.1 — 3.1", 7),        # different app -> kept
+    ]
+    with db.session_scope() as s:
+        repository.save_raw(s, [
+            RawItemDraft(source="github", external_id=eid, url="u", title=t, body="b")
+            for eid, t, _ in items
+        ])
+    with db.session_scope() as s:
+        raws = {r.external_id: r for r in s.exec(select(RawItem)).all()}
+        for eid, _, score in items:
+            s.add(Insight(raw_item_id=raws[eid].id, relevance_score=score,
+                          category="Technical Analysis", technical_summary="t",
+                          trader_impact="i", model_used="x"))
+    with db.session_scope() as s:
+        repository.prune_insights(s, alpha_keep=40, community_keep=20)  # generous cap: only dedup acts
+    with db.session_scope() as s:
+        titles = sorted(r.title for i, r in
+                        s.exec(select(Insight, RawItem).join(RawItem, Insight.raw_item_id == RawItem.id)).all())
+        assert len(titles) == 2  # one freqtrade (the 9) + Lean
+        assert any("freqtrade" in t and "2026.3" in t for t in titles)  # kept the higher-scored
+        assert not any("2026.6" in t for t in titles)                   # dropped the duplicate
 
 
 def test_discovered_source_promotes_after_three_qualifying_insights(temp_db):

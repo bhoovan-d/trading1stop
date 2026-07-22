@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import delete as sa_delete, func, update as sa_update
@@ -11,6 +12,22 @@ from sqlmodel import Session, select
 from ..config import COMMUNITY_SOURCES
 from ..ingestion.base import RawItemDraft
 from ..models import DailyBrief, Insight, InsightExtraction, RawItem, SourceRegistry
+
+_SIG_NOISE = re.compile(r"[^a-z\s]")
+
+
+def dedup_signature(title: str) -> str:
+    """A coarse 'same app / subject' key so repeated updates collapse (e.g. multiple
+    "[freqtrade/freqtrade] release 2026.x" cards → one). The bracket prefix (repo / firm /
+    feed) plus the first few non-numeric words; version numbers and dates are stripped so
+    successive releases share a signature, while genuinely different items (distinct job roles,
+    distinct news headlines) keep their own."""
+    t = (title or "").lower()
+    m = re.match(r"\s*\[([^\]]+)\]\s*", t)
+    prefix = m.group(1).strip() if m else ""
+    rest = t[m.end():] if m else t
+    words = [w for w in _SIG_NOISE.sub(" ", rest).split() if len(w) > 2][:5]
+    return f"{prefix}|{' '.join(words)}"
 
 
 def source_key_for(draft: RawItemDraft) -> str:
@@ -210,11 +227,13 @@ def save_insight(
 
 
 def prune_insights(session: Session, alpha_keep: int, community_keep: int) -> int:
-    """Keep only the top-N insights per stream (by score, then recency); delete the rest.
+    """Collapse near-duplicate 'same app' updates, then keep the top-N per stream.
 
-    Bounds what the site shows to a rolling "best of" window. Only ``Insight`` rows are removed —
-    their ``RawItem`` stays ``processed=True``, so pruned items are never re-ingested or re-scored
-    (no extra LLM cost). Returns the number of insights deleted.
+    Walks each stream best-first (score, then recency) and keeps the first insight of each
+    :func:`dedup_signature` up to the stream's cap — so repeated app updates (e.g. several
+    "[freqtrade/freqtrade] release" cards) collapse to the single best one, and the site stays a
+    rolling, non-repetitive best-of window. Only ``Insight`` rows are removed; their ``RawItem``
+    stays ``processed=True`` (never re-ingested or re-scored). Returns the number deleted.
     """
     deleted = 0
     for is_community, keep in ((False, alpha_keep), (True, community_keep)):
@@ -225,19 +244,24 @@ def prune_insights(session: Session, alpha_keep: int, community_keep: int) -> in
                 else RawItem.source.not_in(COMMUNITY_SOURCES)
             )
 
-        keep_ids = set(
-            session.exec(
-                _stream(select(Insight.id).join(RawItem, Insight.raw_item_id == RawItem.id))
-                .order_by(Insight.relevance_score.desc(), Insight.created_at.desc())
-                .limit(max(0, keep))
-            ).all()
-        )
-        all_ids = set(
-            session.exec(
-                _stream(select(Insight.id).join(RawItem, Insight.raw_item_id == RawItem.id))
-            ).all()
-        )
-        to_delete = all_ids - keep_ids
+        rows = session.exec(
+            _stream(
+                select(Insight.id, RawItem.title).join(RawItem, Insight.raw_item_id == RawItem.id)
+            ).order_by(Insight.relevance_score.desc(), Insight.created_at.desc())
+        ).all()
+
+        keep_ids: set[int] = set()
+        seen_sigs: set[str] = set()
+        for iid, title in rows:
+            if len(keep_ids) >= max(0, keep):
+                break
+            sig = dedup_signature(title)
+            if sig in seen_sigs:
+                continue  # a lower-scored duplicate of an app/subject we already kept
+            seen_sigs.add(sig)
+            keep_ids.add(iid)
+
+        to_delete = {iid for iid, _ in rows} - keep_ids
         if to_delete:
             session.execute(sa_delete(Insight).where(Insight.id.in_(to_delete)))
             deleted += len(to_delete)
