@@ -52,6 +52,12 @@ class Settings(BaseSettings):
     synthesis_max_per_run: int = 60
     site_insight_target: int = 40
     community_insight_target: int = 20
+    # Guaranteed minimums so the specialized tabs never go empty when their items don't crack
+    # the overall top-N on score alone (jobs/India typically score below launches/tooling).
+    # These are kept IN ADDITION to the top-N best, so the site stays small (~40 + these).
+    retain_hiring: int = 6      # /jobs
+    retain_india: int = 6       # /india
+    retain_launches: int = 6    # /launches (launch + funding)
 
     # Anthropic (reference; optional)
     anthropic_api_key: str | None = None

@@ -58,6 +58,11 @@ def run_pipeline(
             session,
             alpha_keep=settings.site_insight_target,
             community_keep=settings.community_insight_target,
+            quotas={
+                "hiring": settings.retain_hiring,
+                "india": settings.retain_india,
+                "launches": settings.retain_launches,
+            },
         )
     if pruned:
         logger.info(f"[prune] removed {pruned} insight(s) beyond the top-N window.")

@@ -207,6 +207,30 @@ def test_prune_collapses_duplicate_app_updates(temp_db):
         assert not any("2026.6" in t for t in titles)                   # dropped the duplicate
 
 
+def test_prune_quota_keeps_facet_items_below_the_cap(temp_db):
+    """A low-scored hiring item survives pruning when a hiring quota is set, even though it
+    would be crowded out of the overall top-N by higher-scored launches."""
+    launch_titles = ["Alpha exchange platform", "Beta broker feature", "Gamma execution engine"]
+    with db.session_scope() as s:
+        repository.save_raw(s, [
+            RawItemDraft(source="rss", external_id=f"L{n}", url="u", title=t, body="b")
+            for n, t in enumerate(launch_titles)
+        ] + [RawItemDraft(source="careers", external_id="job1", url="u", title="[Graviton] Quant Researcher", body="b")])
+    with db.session_scope() as s:
+        by_ext = {r.external_id: r for r in s.exec(select(RawItem)).all()}
+        for n in range(3):  # three launches score 10 — they fill the top-N
+            s.add(Insight(raw_item_id=by_ext[f"L{n}"].id, relevance_score=10, category="Technical Analysis",
+                          item_type="launch", region="Global", technical_summary="t", trader_impact="i", model_used="x"))
+        s.add(Insight(raw_item_id=by_ext["job1"].id, relevance_score=7, category="Quant Firms",
+                      item_type="hiring", region="India", technical_summary="t", trader_impact="i", model_used="x"))
+    # Cap alpha to 3 (the launches) — without a quota the hiring item (score 7) would be pruned.
+    with db.session_scope() as s:
+        repository.prune_insights(s, alpha_keep=3, community_keep=0, quotas={"hiring": 1})
+    with db.session_scope() as s:
+        types = sorted(i.item_type for i in s.exec(select(Insight)).all())
+        assert types == ["hiring", "launch", "launch", "launch"]  # 3 launches + the quota'd hiring
+
+
 def test_discovered_source_promotes_after_three_qualifying_insights(temp_db):
     drafts = [
         RawItemDraft(

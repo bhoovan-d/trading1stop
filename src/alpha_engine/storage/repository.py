@@ -226,17 +226,37 @@ def save_insight(
     return insight
 
 
-def prune_insights(session: Session, alpha_keep: int, community_keep: int) -> int:
-    """Collapse near-duplicate 'same app' updates, then keep the top-N per stream.
+def _facet_match(facet: str, item_type: str | None, region: str | None) -> bool:
+    if facet == "hiring":
+        return item_type == "hiring"
+    if facet == "india":
+        return region == "India"
+    if facet == "launches":
+        return item_type in ("launch", "funding")
+    return False
+
+
+def prune_insights(
+    session: Session,
+    alpha_keep: int,
+    community_keep: int,
+    *,
+    quotas: dict[str, int] | None = None,
+) -> int:
+    """Collapse near-duplicate 'same app' updates, then keep the top-N per stream — plus small
+    per-facet minimums so the specialized tabs never go empty.
 
     Walks each stream best-first (score, then recency) and keeps the first insight of each
-    :func:`dedup_signature` up to the stream's cap — so repeated app updates (e.g. several
-    "[freqtrade/freqtrade] release" cards) collapse to the single best one, and the site stays a
-    rolling, non-repetitive best-of window. Only ``Insight`` rows are removed; their ``RawItem``
-    stays ``processed=True`` (never re-ingested or re-scored). Returns the number deleted.
+    :func:`dedup_signature` up to the stream's cap, so repeated app updates (e.g. several
+    "[freqtrade/freqtrade] release" cards) collapse to the single best one. ``quotas`` (applied to
+    the ALPHA stream only) additionally guarantees at least N items of a facet survive even when
+    they'd miss the overall top-N on score — ``{"hiring": 6, "india": 6, "launches": 6}`` keeps the
+    /jobs, /india, /launches tabs populated. Only ``Insight`` rows are removed; their ``RawItem``
+    stays ``processed=True`` (never re-scored). Returns the number deleted.
     """
     deleted = 0
     for is_community, keep in ((False, alpha_keep), (True, community_keep)):
+        stream_quotas = {} if is_community else (quotas or {})
 
         def _stream(stmt):
             return stmt.where(
@@ -246,22 +266,34 @@ def prune_insights(session: Session, alpha_keep: int, community_keep: int) -> in
 
         rows = session.exec(
             _stream(
-                select(Insight.id, RawItem.title).join(RawItem, Insight.raw_item_id == RawItem.id)
+                select(Insight.id, RawItem.title, Insight.item_type, Insight.region)
+                .join(RawItem, Insight.raw_item_id == RawItem.id)
             ).order_by(Insight.relevance_score.desc(), Insight.created_at.desc())
         ).all()
 
         keep_ids: set[int] = set()
         seen_sigs: set[str] = set()
-        for iid, title in rows:
-            if len(keep_ids) >= max(0, keep):
-                break
+        overall = 0
+        facet_counts = {f: 0 for f in stream_quotas}
+        for iid, title, item_type, region in rows:
             sig = dedup_signature(title)
             if sig in seen_sigs:
                 continue  # a lower-scored duplicate of an app/subject we already kept
+            need_overall = overall < max(0, keep)
+            need_facet = any(
+                facet_counts[f] < q and _facet_match(f, item_type, region)
+                for f, q in stream_quotas.items()
+            )
+            if not (need_overall or need_facet):
+                continue
             seen_sigs.add(sig)
             keep_ids.add(iid)
+            overall += 1
+            for f in stream_quotas:
+                if _facet_match(f, item_type, region):
+                    facet_counts[f] += 1
 
-        to_delete = {iid for iid, _ in rows} - keep_ids
+        to_delete = {iid for iid, _, _, _ in rows} - keep_ids
         if to_delete:
             session.execute(sa_delete(Insight).where(Insight.id.in_(to_delete)))
             deleted += len(to_delete)
