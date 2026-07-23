@@ -89,6 +89,16 @@ clearing/settlement, custody, prime brokerage, trading infrastructure, and prop/
 DE-SCORE (1-4) consumer fintech with no trading angle — payments, lending, neobanks, insurance, \
 personal-finance/budgeting, remittances — unless it directly serves traders or the markets.
 
+VENTURE SIGNIFICANCE (launch / funding / early_stage ONLY) — score these on how NOTABLE the venture \
+is, NOT on whether a trader can use it today. A genuine, real new capital-markets / trading venture — \
+a new startup, a funding round or raise (seed/Series-X), or an acquisition of an exchange, broker, \
+trading/markets platform, execution or market-data company, quant/trading-infra firm, or an \
+AI-for-investing/trading startup — is worth 7-9 EVEN IF there is nothing a trader can act on right now \
+(a raise is news to watch, not a tool). Reserve 9-10 for the most significant/relevant ventures. This \
+OVERRIDES the "must be actionable" rubric for these three item types only. It does NOT rescue \
+consumer fintech with no trading angle (payments, lending, neobanks, remittances — e.g. a lending \
+startup's raise) — those stay 1-4 per CAPITAL MARKETS FOCUS above.
+
 REGION — is this about India or global?
 - "India": Indian markets (NSE/BSE, Nifty, Bank Nifty, Sensex), Indian brokers/platforms \
   (Zerodha, Upstox, Dhan, Angel One, Groww, Kite, Tradetron), SEBI, Indian fintechs, content \

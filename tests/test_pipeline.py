@@ -10,7 +10,15 @@ from alpha_engine import config, db
 from alpha_engine.ingestion.base import RawItemDraft
 from alpha_engine.intelligence.provider import CascadeProvider
 from alpha_engine.intelligence.synthesize import run_synthesis
-from alpha_engine.models import Approach, Category, InsightExtraction, Insight, RawItem, SourceRegistry
+from alpha_engine.models import (
+    Approach,
+    Category,
+    InsightExtraction,
+    Insight,
+    ItemType,
+    RawItem,
+    SourceRegistry,
+)
 from alpha_engine.storage import repository
 from sqlmodel import select
 
@@ -239,6 +247,85 @@ def test_relabel_recycled_launches_moves_release_cards_to_tooling(temp_db):
         assert by_title["[hummingbot/hummingbot] release v2.12.0"].workflow_stage is None  # cleared
     with db.session_scope() as s:
         assert repository.relabel_recycled_launches(s) == 0  # idempotent
+
+
+class VentureProvider:
+    """Scores every item 6; tags it `funding` if the title says FUND, else `tooling`."""
+
+    label = "fake:venture"
+
+    def extract(self, item: RawItem) -> InsightExtraction | None:
+        it = ItemType.FUNDING if "FUND" in item.title else ItemType.TOOLING
+        return InsightExtraction(
+            relevance_score=6, category=Category.QUANT_FIRMS, item_type=it,
+            technical_summary="s", trader_impact="i",
+        )
+
+
+def test_venture_threshold_keeps_funding_below_alpha_bar(temp_db):
+    """A funding item scored 6 is KEPT (venture threshold 6) while a tooling item scored 6 is
+    dropped (alpha threshold 7)."""
+    with db.session_scope() as s:
+        repository.save_raw(s, [
+            RawItemDraft(source="rss", external_id="f", url="u", title="FUND: startup raises 20M", body="b"),
+            RawItemDraft(source="rss", external_id="t", url="u", title="a tool update", body="b"),
+        ])
+    run_synthesis(provider=CascadeProvider([VentureProvider()]))
+    with db.session_scope() as s:
+        kept = {r.title: i.item_type for i, r in
+                s.exec(select(Insight, RawItem).join(RawItem, Insight.raw_item_id == RawItem.id)).all()}
+        assert kept == {"FUND: startup raises 20M": "funding"}  # tooling@6 dropped, funding@6 kept
+
+
+def test_requeue_ventures_resets_and_deletes(temp_db):
+    """Requeue targets funding/startup-looking items: deletes their insight and marks them
+    unprocessed; leaves unrelated items alone."""
+    with db.session_scope() as s:
+        repository.save_raw(s, [
+            RawItemDraft(source="rss", external_id="v", url="u", title="Acme raises Series A round", body="b"),
+            RawItemDraft(source="rss", external_id="n", url="u", title="a plain tooling note", body="b"),
+        ])
+    with db.session_scope() as s:
+        by = {r.external_id: r for r in s.exec(select(RawItem)).all()}
+        for r in by.values():
+            r.processed = True
+            s.add(r)
+        s.add(Insight(raw_item_id=by["v"].id, relevance_score=8, category="Quant Firms",
+                      item_type="funding", region="Global", technical_summary="t",
+                      trader_impact="i", model_used="x"))
+    with db.session_scope() as s:
+        assert repository.requeue_ventures(s) == 1  # only the venture-looking item
+    with db.session_scope() as s:
+        by = {r.external_id: r for r in s.exec(select(RawItem)).all()}
+        assert by["v"].processed is False        # requeued for re-scoring
+        assert by["n"].processed is True         # untouched
+        assert s.exec(select(Insight)).all() == []  # the funding insight was deleted
+
+
+def test_exclude_item_type_hides_venture_from_query(temp_db):
+    """The main-feed exclude filter omits venture item types from a query."""
+    from alpha_engine.api.routes import _apply_filters
+
+    with db.session_scope() as s:
+        repository.save_raw(s, [
+            RawItemDraft(source="rss", external_id="a", url="u", title="t1", body="b"),
+            RawItemDraft(source="rss", external_id="b", url="u", title="t2", body="b"),
+        ])
+    with db.session_scope() as s:
+        by = {r.external_id: r for r in s.exec(select(RawItem)).all()}
+        s.add(Insight(raw_item_id=by["a"].id, relevance_score=8, category="Quant Firms",
+                      item_type="funding", region="Global", technical_summary="t",
+                      trader_impact="i", model_used="x"))
+        s.add(Insight(raw_item_id=by["b"].id, relevance_score=8, category="Quant Firms",
+                      item_type="tooling", region="Global", technical_summary="t",
+                      trader_impact="i", model_used="x"))
+    filt = dict(category=None, approach=None, item_type=None,
+                exclude_item_type="launch,funding,early_stage", region=None, min_score=None,
+                source=None, stream=None, date_from=None, date_to=None, q=None)
+    with db.session_scope() as s:
+        base = select(Insight, RawItem).join(RawItem, Insight.raw_item_id == RawItem.id)
+        rows = s.exec(_apply_filters(base, **filt)).all()
+        assert sorted(i.item_type for i, _ in rows) == ["tooling"]  # funding excluded
 
 
 def test_prune_quota_keeps_facet_items_below_the_cap(temp_db):
