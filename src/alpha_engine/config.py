@@ -53,16 +53,20 @@ class Settings(BaseSettings):
     # simultaneous load per provider. The cascade rotates providers so load spreads across
     # all configured keys; add more free providers to raise the ceiling before rate limits.
     synthesis_workers: int = 6
-    # Bounded daily processing + a rolling "best of" site. The pipeline scores at most
-    # synthesis_max_per_run freshest items per run (never hundreds), then prunes the stored
-    # insights down to the top site_insight_target (alpha) / community_insight_target (community)
-    # by score+recency — so the webpage always shows ~the best, not an ever-growing pile.
-    synthesis_max_per_run: int = 60
-    site_insight_target: int = 40
-    community_insight_target: int = 20
-    # Guaranteed minimums so the specialized tabs never go empty when their items don't crack
-    # the overall top-N on score alone (jobs/India typically score below launches/tooling).
-    # These are kept IN ADDITION to the top-N best, so the site stays small (~40 + these).
+    # The pipeline scores at most synthesis_max_per_run freshest items per run. Raised so the
+    # archive fills quickly over the backlog; free-tier rate limits still pace it and any items a
+    # provider can't take are left unprocessed and retried on the next run.
+    synthesis_max_per_run: int = 300
+    # Retention caps: keep the top site_insight_target (alpha) / community_insight_target (community)
+    # insights by score+recency after each run. Set to None to KEEP EVERYTHING relevant (no cap) —
+    # the site becomes a growing archive of all above-threshold, de-duplicated insights rather than
+    # a rolling "best of". Relevance filtering (the score threshold) and duplicate-collapsing still
+    # apply, so it stays signal, not noise.
+    site_insight_target: int | None = None
+    community_insight_target: int | None = None
+    # Guaranteed per-tab minimums so the specialized tabs never go empty when a top-N cap is in
+    # effect. With the caps set to None (unlimited) above these are redundant but harmless; they
+    # still act as floors if a numeric cap is ever restored.
     retain_hiring: int = 6      # /jobs
     retain_india: int = 6       # /india
     retain_launches: int = 6    # /launches (launch + funding + early_stage)
