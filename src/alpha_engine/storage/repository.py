@@ -308,8 +308,8 @@ def _facet_match(facet: str, item_type: str | None, region: str | None) -> bool:
 
 def prune_insights(
     session: Session,
-    alpha_keep: int,
-    community_keep: int,
+    alpha_keep: int | None,
+    community_keep: int | None,
     *,
     quotas: dict[str, int] | None = None,
 ) -> int:
@@ -318,11 +318,13 @@ def prune_insights(
 
     Walks each stream best-first (score, then recency) and keeps the first insight of each
     :func:`dedup_signature` up to the stream's cap, so repeated app updates (e.g. several
-    "[freqtrade/freqtrade] release" cards) collapse to the single best one. ``quotas`` (applied to
-    the ALPHA stream only) additionally guarantees at least N items of a facet survive even when
-    they'd miss the overall top-N on score — ``{"hiring": 6, "india": 6, "launches": 6}`` keeps the
-    /jobs, /india, /launches tabs populated. Only ``Insight`` rows are removed; their ``RawItem``
-    stays ``processed=True`` (never re-scored). Returns the number deleted.
+    "[freqtrade/freqtrade] release" cards) collapse to the single best one. A cap of ``None`` means
+    UNLIMITED — keep every relevant, de-duplicated insight (no top-N cap), so the site becomes a
+    growing archive rather than a rolling best-of. ``quotas`` (applied to the ALPHA stream only)
+    additionally guarantees at least N items of a facet survive even when they'd miss the overall
+    top-N on score — ``{"hiring": 6, "india": 6, "launches": 6}`` keeps the /jobs, /india, /launches
+    tabs populated. Only ``Insight`` rows are removed; their ``RawItem`` stays ``processed=True``
+    (never re-scored). Returns the number deleted.
     """
     deleted = 0
     for is_community, keep in ((False, alpha_keep), (True, community_keep)):
@@ -349,7 +351,7 @@ def prune_insights(
             sig = dedup_signature(title)
             if sig in seen_sigs:
                 continue  # a lower-scored duplicate of an app/subject we already kept
-            need_overall = overall < max(0, keep)
+            need_overall = keep is None or overall < keep
             need_facet = any(
                 facet_counts[f] < q and _facet_match(f, item_type, region)
                 for f, q in stream_quotas.items()

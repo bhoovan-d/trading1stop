@@ -187,6 +187,26 @@ def test_prune_insights_keeps_top_n(temp_db):
         assert len(s.exec(select(RawItem)).all()) == 4  # RawItems untouched (never re-scored)
 
 
+def test_prune_unlimited_keeps_everything_relevant(temp_db):
+    """A cap of None keeps every distinct insight (no top-N), while still collapsing duplicates."""
+    with db.session_scope() as s:
+        repository.save_raw(s, [
+            RawItemDraft(source="rss", external_id="a", url="u", title="Alpha charting tool", body="b"),
+            RawItemDraft(source="rss", external_id="b", url="u", title="Beta options screener", body="b"),
+            RawItemDraft(source="rss", external_id="c", url="u", title="Gamma data feed", body="b"),
+            RawItemDraft(source="rss", external_id="d", url="u", title="Delta risk engine", body="b"),
+        ])
+    with db.session_scope() as s:
+        for score, r in zip((10, 9, 8, 4), s.exec(select(RawItem)).all()):
+            s.add(Insight(raw_item_id=r.id, relevance_score=score, category="Technical Analysis",
+                          technical_summary="t", trader_impact="i", model_used="x"))
+    with db.session_scope() as s:
+        deleted = repository.prune_insights(s, alpha_keep=None, community_keep=None)
+    assert deleted == 0  # unlimited cap deletes nothing
+    with db.session_scope() as s:
+        assert len(s.exec(select(Insight)).all()) == 4  # even the low-scored (4) insight is kept
+
+
 def test_prune_collapses_duplicate_app_updates(temp_db):
     """Repeated updates of the same app (e.g. successive freqtrade releases) collapse to one."""
     items = [
