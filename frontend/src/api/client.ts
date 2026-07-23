@@ -13,6 +13,7 @@ export interface Filters {
   category?: string;
   approach?: string;
   item_type?: string;
+  exclude_item_type?: string;
   region?: string;
   min_score?: number;
   source?: string;

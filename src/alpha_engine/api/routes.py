@@ -29,6 +29,7 @@ def _apply_filters(
     category: str | None,
     approach: str | None,
     item_type: str | None,
+    exclude_item_type: str | None,
     region: str | None,
     min_score: int | None,
     source: str | None,
@@ -46,6 +47,11 @@ def _apply_filters(
         # Accept a comma-separated list ("launch,funding") so one view can span item types.
         types = [t for t in item_type.split(",") if t]
         stmt = stmt.where(Insight.item_type.in_(types))
+    if exclude_item_type:
+        # Comma-separated list to hide from a view (e.g. the main feed hides venture item types,
+        # which live only in the Launches tab).
+        excluded = [t for t in exclude_item_type.split(",") if t]
+        stmt = stmt.where(Insight.item_type.not_in(excluded))
     if region:
         stmt = stmt.where(Insight.region == region)
     if min_score is not None:
@@ -78,6 +84,7 @@ def list_insights(
     category: str | None = Query(None),
     approach: str | None = Query(None),
     item_type: str | None = Query(None),
+    exclude_item_type: str | None = Query(None),
     region: str | None = Query(None),
     min_score: int | None = Query(None, ge=1, le=10),
     source: str | None = Query(None),
@@ -90,7 +97,8 @@ def list_insights(
     page_size: int = Query(20, ge=1, le=100),
 ) -> InsightPage:
     filters = dict(
-        category=category, approach=approach, item_type=item_type, region=region,
+        category=category, approach=approach, item_type=item_type,
+        exclude_item_type=exclude_item_type, region=region,
         min_score=min_score, source=source, stream=stream,
         date_from=date_from, date_to=date_to, q=q,
     )

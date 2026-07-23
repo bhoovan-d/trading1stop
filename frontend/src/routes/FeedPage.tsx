@@ -12,11 +12,13 @@ export function FeedPage({
   lockedCategory,
   lockedRegion,
   lockedItemType,
+  excludeItemType,
 }: {
   stream?: "alpha" | "community";
   lockedCategory?: string;
   lockedRegion?: string;
   lockedItemType?: string;
+  excludeItemType?: string;
 } = {}) {
   const [params, setParams] = useSearchParams();
   const { data: meta } = useMeta();
@@ -80,6 +82,7 @@ export function FeedPage({
     category: lockedCategory ?? (values.category || undefined),
     approach: values.approach || undefined,
     item_type: lockedItemType ?? (values.item_type || undefined),
+    exclude_item_type: excludeItemType,
     region: lockedRegion ?? undefined,
     min_score: values.min_score ? Number(values.min_score) : undefined,
     source: values.source || undefined,

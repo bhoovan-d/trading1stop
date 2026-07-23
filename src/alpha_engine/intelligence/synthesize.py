@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 
 from loguru import logger
 
-from ..config import COMMUNITY_SOURCES, Settings, get_settings
+from ..config import COMMUNITY_SOURCES, VENTURE_ITEM_TYPES, Settings, get_settings
 from ..db import session_scope
 from ..storage import repository
 from .provider import CascadeProvider, build_provider
@@ -48,8 +48,13 @@ def run_synthesis(
 
     alpha_threshold = settings.relevance_threshold
     community_threshold = settings.community_relevance_threshold
+    venture_threshold = settings.venture_relevance_threshold
 
-    def threshold_for(source: str) -> int:
+    def threshold_for(source: str, item_type: str) -> int:
+        # Venture news (funding/launch/early_stage) is scored on significance, not usability, so it
+        # gets its own bar regardless of source; otherwise community sources use the lighter bar.
+        if item_type in VENTURE_ITEM_TYPES:
+            return venture_threshold
         return community_threshold if source in COMMUNITY_SOURCES else alpha_threshold
 
     with session_scope() as session:
@@ -85,7 +90,7 @@ def run_synthesis(
                 extraction, served_by = result
                 stats.by_tier[served_by] = stats.by_tier.get(served_by, 0) + 1
 
-                if extraction.relevance_score >= threshold_for(item.source):
+                if extraction.relevance_score >= threshold_for(item.source, extraction.item_type.value):
                     repository.save_insight(session, item, extraction, model_used=served_by)
                     repository.record_qualification(session, item)
                     stats.insights += 1

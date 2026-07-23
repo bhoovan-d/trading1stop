@@ -19,6 +19,13 @@ _SIG_NOISE = re.compile(r"[^a-z\s]")
 # "release", "releases"/"released", or a version token like "2026.4" / "v2.12.0".
 _RELEASE_TITLE = re.compile(r"\brelease(s|d)?\b|\bv?\d+\.\d+", re.I)
 
+# A title that reads like new-venture / funding news — used to requeue just those items for
+# re-scoring under the venture-significance rules, without touching the rest of the corpus.
+_VENTURE_TITLE = re.compile(
+    r"\b(raise[sd]?|funding|funded|seed|series\s+[a-e]|venture|startup|acqui\w*|ipo|valuation)\b",
+    re.I,
+)
+
 
 def dedup_signature(title: str) -> str:
     """A coarse 'same app / subject' key so repeated updates collapse (e.g. multiple
@@ -254,6 +261,39 @@ def relabel_recycled_launches(session: Session) -> int:
             session.add(insight)
             changed += 1
     return changed
+
+
+def requeue_ventures(session: Session) -> int:
+    """Requeue new-venture / funding items for re-scoring under the venture-significance rules — no LLM.
+
+    Selects RawItems whose title reads like funding/startup news (:data:`_VENTURE_TITLE`) or whose
+    current Insight is already a venture item type, then deletes any existing Insight and marks the
+    RawItem unprocessed with a fresh ``fetched_at`` — so the next ``run-once`` (newest-first, capped)
+    re-scores exactly these items rather than the whole backlog. Returns the count requeued.
+    """
+    from ..config import VENTURE_ITEM_TYPES
+
+    # SQLite has no REGEXP by default, so scan titles in Python (the corpus is small).
+    ids: set[int] = set()
+    for rid, title in session.exec(select(RawItem.id, RawItem.title)).all():
+        if _VENTURE_TITLE.search(title or ""):
+            ids.add(rid)
+    # Also include anything currently tagged as a venture type (e.g. stale launch cards).
+    for rid in session.exec(
+        select(Insight.raw_item_id).where(Insight.item_type.in_(tuple(VENTURE_ITEM_TYPES)))
+    ).all():
+        ids.add(rid)
+
+    if not ids:
+        return 0
+
+    session.execute(sa_delete(Insight).where(Insight.raw_item_id.in_(ids)))
+    session.execute(
+        sa_update(RawItem)
+        .where(RawItem.id.in_(ids))
+        .values(processed=False, fetched_at=datetime.now(timezone.utc))
+    )
+    return len(ids)
 
 
 def _facet_match(facet: str, item_type: str | None, region: str | None) -> bool:

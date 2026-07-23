@@ -17,6 +17,11 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 # source of truth used by synthesis (lower threshold) and the API (stream classification).
 COMMUNITY_SOURCES = frozenset({"reddit", "forum", "bluesky", "stocktwits"})
 
+# The "new venture" item types that populate the Launches tab. Single source of truth used by
+# synthesis (their own relevance threshold — venture news is scored on significance, not day-one
+# usability) and the API (excluded from the main Alpha Feed, shown only in the Launches tab).
+VENTURE_ITEM_TYPES = frozenset({"launch", "funding", "early_stage"})
+
 
 def stream_for(source: str) -> str:
     """Classify a RawItem/Insight source into the 'community' or 'alpha' stream."""
@@ -41,6 +46,9 @@ class Settings(BaseSettings):
     # Community sources (reddit/forums) are discussion, not shipped engineering, so they're
     # held to a lower bar than the alpha stream (GitHub / research / MCP).
     community_relevance_threshold: int = 5
+    # New-venture news (funding/launch/early_stage) is scored on venture significance, not day-one
+    # trader usability, so it's held to its own bar rather than the stricter alpha threshold.
+    venture_relevance_threshold: int = 6
     # Concurrent synthesis workers. Higher = faster on the first big backlog, but more
     # simultaneous load per provider. The cascade rotates providers so load spreads across
     # all configured keys; add more free providers to raise the ceiling before rate limits.

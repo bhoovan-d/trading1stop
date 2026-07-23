@@ -62,6 +62,22 @@ def relabel_launches_cmd() -> None:
     typer.echo(f"Relabeled {changed} recycled launch card(s) -> tooling")
 
 
+@app.command("requeue-ventures")
+def requeue_ventures_cmd() -> None:
+    """Requeue funding/startup items so the next run re-scores them under the venture rules.
+
+    Deterministic and LLM-free: deletes any existing insight for venture/funding-looking items and
+    marks them unprocessed (freshest first), so `run-once` re-scores just those — not the whole
+    backlog. Run `alpha-engine run-once` afterwards (needs an LLM key) to score them.
+    """
+    from .db import session_scope
+    from .storage.repository import requeue_ventures
+
+    with session_scope() as session:
+        count = requeue_ventures(session)
+    typer.echo(f"Requeued {count} venture item(s); run 'run-once' to re-score.")
+
+
 @app.command("ingest-only")
 def ingest_only(
     source: list[str] = typer.Option(
