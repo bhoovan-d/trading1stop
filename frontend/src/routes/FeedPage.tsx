@@ -23,7 +23,7 @@ export function FeedPage({
   const isCommunity = stream === "community";
   const isFirms = lockedCategory != null;
   const isIndia = lockedRegion != null;
-  const isLaunches = lockedItemType === "launch,funding";
+  const isLaunches = lockedItemType === "launch,funding,early_stage";
   const isJobs = lockedItemType === "hiring";
 
   const values: FilterValues = {
@@ -100,12 +100,13 @@ export function FeedPage({
             className="font-serif text-2xl font-semibold tracking-tight text-ink"
             style={{ fontVariationSettings: '"opsz" 40' }}
           >
-            New Launches &amp; Funding
+            New Ventures &amp; Funding
           </h1>
           <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted">
-            New products, platforms, and broker features that have shipped — plus funding rounds and
-            acquisitions — across capital markets &amp; trading. Consumer fintech (payments, lending)
-            is filtered out; this is what a trader can actually use or watch.
+            New startups and venture creations in capital markets &amp; trading — companies making their
+            market debut, early-stage ventures to watch, and funding rounds or acquisitions. Existing-
+            company feature updates, open-source release notes, and consumer fintech (payments, lending)
+            are filtered out — only genuinely new ventures, not the same recycled updates.
           </p>
         </div>
       ) : isJobs ? (

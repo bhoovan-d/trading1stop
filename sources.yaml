@@ -152,6 +152,27 @@ rss:
     - sebi
     - zerodha
     - upstox
+    # Venture/funding vocabulary — so genuine startup & funding headlines survive ingest and
+    # reach the LLM (which then de-scores any non-trading consumer fintech). Feeds the Launches tab.
+    - funding
+    - funded
+    - raise
+    - raises
+    - raised
+    - seed
+    - series
+    - round
+    - venture
+    - ventures
+    - startup
+    - startups
+    - acquire
+    - acquires
+    - acquired
+    - acquisition
+    - merger
+    - ipo
+    - valuation
 
 forums:
   # COMMUNITY-stream source. QuantConnect has a dedicated scraper (newest threads via

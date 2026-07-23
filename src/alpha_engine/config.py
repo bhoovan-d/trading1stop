@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     # These are kept IN ADDITION to the top-N best, so the site stays small (~40 + these).
     retain_hiring: int = 6      # /jobs
     retain_india: int = 6       # /india
-    retain_launches: int = 6    # /launches (launch + funding)
+    retain_launches: int = 6    # /launches (launch + funding + early_stage)
 
     # Anthropic (reference; optional)
     anthropic_api_key: str | None = None

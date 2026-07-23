@@ -35,7 +35,8 @@ _WORKFLOW_LOOKUP = {w.value.lower(): w.value for w in WorkflowStage}
 # Common synonyms a model might emit for the new axes (mapped to canonical enum values).
 _ITEM_TYPE_LOOKUP.update({
     "product launch": ItemType.LAUNCH.value, "product": ItemType.LAUNCH.value,
-    "release": ItemType.LAUNCH.value, "feature": ItemType.LAUNCH.value,
+    # A release / new feature comes from something that ALREADY exists → tooling, not a launch.
+    "release": ItemType.TOOLING.value, "feature": ItemType.TOOLING.value,
     "fundraise": ItemType.FUNDING.value, "funding round": ItemType.FUNDING.value,
     "acquisition": ItemType.FUNDING.value, "raise": ItemType.FUNDING.value,
     "beta": ItemType.EARLY_STAGE.value, "waitlist": ItemType.EARLY_STAGE.value,
