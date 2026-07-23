@@ -53,8 +53,10 @@ class Settings(BaseSettings):
     # simultaneous load per provider. The cascade rotates providers so load spreads across
     # all configured keys; add more free providers to raise the ceiling before rate limits.
     synthesis_workers: int = 6
-    # The pipeline scores at most synthesis_max_per_run freshest items per run (never hundreds).
-    synthesis_max_per_run: int = 60
+    # The pipeline scores at most synthesis_max_per_run freshest items per run. Raised so the
+    # archive fills quickly over the backlog; free-tier rate limits still pace it and any items a
+    # provider can't take are left unprocessed and retried on the next run.
+    synthesis_max_per_run: int = 300
     # Retention caps: keep the top site_insight_target (alpha) / community_insight_target (community)
     # insights by score+recency after each run. Set to None to KEEP EVERYTHING relevant (no cap) —
     # the site becomes a growing archive of all above-threshold, de-duplicated insights rather than
