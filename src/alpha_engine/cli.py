@@ -47,6 +47,21 @@ def source_health_cmd() -> None:
             typer.echo(item)
 
 
+@app.command("relabel-launches")
+def relabel_launches_cmd() -> None:
+    """Move recycled release/version cards out of the Launches tab (launch/early_stage → tooling).
+
+    Deterministic and LLM-free — fixes items mislabeled by the old "release"→launch mapping without
+    re-scoring the corpus. Safe to re-run (idempotent); deletes nothing.
+    """
+    from .db import session_scope
+    from .storage.repository import relabel_recycled_launches
+
+    with session_scope() as session:
+        changed = relabel_recycled_launches(session)
+    typer.echo(f"Relabeled {changed} recycled launch card(s) -> tooling")
+
+
 @app.command("ingest-only")
 def ingest_only(
     source: list[str] = typer.Option(

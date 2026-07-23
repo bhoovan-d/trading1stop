@@ -15,6 +15,10 @@ from ..models import DailyBrief, Insight, InsightExtraction, RawItem, SourceRegi
 
 _SIG_NOISE = re.compile(r"[^a-z\s]")
 
+# A title that reads like a version/release card of an EXISTING project (not a new venture):
+# "release", "releases"/"released", or a version token like "2026.4" / "v2.12.0".
+_RELEASE_TITLE = re.compile(r"\brelease(s|d)?\b|\bv?\d+\.\d+", re.I)
+
 
 def dedup_signature(title: str) -> str:
     """A coarse 'same app / subject' key so repeated updates collapse (e.g. multiple
@@ -226,13 +230,39 @@ def save_insight(
     return insight
 
 
+def relabel_recycled_launches(session: Session) -> int:
+    """Deterministically move "recycled" cards out of the launch facet — no LLM.
+
+    Early data was scored when the provider mapped the model tokens "release"/"feature" to
+    ``launch``, so version/release cards of EXISTING projects landed in the Launches tab. This
+    reclassifies those in place (``launch``/``early_stage`` → ``tooling``) without re-running the
+    provider over the whole corpus. An item is "recycled" when it is GitHub-sourced (every
+    configured GitHub repo is an established OSS project, never a new-venture debut) or its title
+    reads like a release/version card (:data:`_RELEASE_TITLE`). Idempotent; returns the count moved.
+    """
+    rows = session.exec(
+        select(Insight, RawItem)
+        .join(RawItem, Insight.raw_item_id == RawItem.id)
+        .where(Insight.item_type.in_(("launch", "early_stage")))
+    ).all()
+    changed = 0
+    for insight, raw in rows:
+        recycled = raw.source == "github" or bool(_RELEASE_TITLE.search(raw.title or ""))
+        if recycled:
+            insight.item_type = "tooling"
+            insight.workflow_stage = None  # tooling carries no workflow stage (see save_insight)
+            session.add(insight)
+            changed += 1
+    return changed
+
+
 def _facet_match(facet: str, item_type: str | None, region: str | None) -> bool:
     if facet == "hiring":
         return item_type == "hiring"
     if facet == "india":
         return region == "India"
     if facet == "launches":
-        return item_type in ("launch", "funding")
+        return item_type in ("launch", "funding", "early_stage")
     return False
 
 

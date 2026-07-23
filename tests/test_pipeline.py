@@ -207,6 +207,40 @@ def test_prune_collapses_duplicate_app_updates(temp_db):
         assert not any("2026.6" in t for t in titles)                   # dropped the duplicate
 
 
+def test_relabel_recycled_launches_moves_release_cards_to_tooling(temp_db):
+    """GitHub items and release/version-titled cards leave the launch facet; genuine new-venture
+    launches stay put. Deterministic, no LLM."""
+    items = [
+        ("github", "[hummingbot/hummingbot] release v2.12.0", "launch"),      # github -> tooling
+        ("rss", "[freqtrade releases] 2026.1", "launch"),                     # version title -> tooling
+        ("rss", "Alpha exchange platform goes live", "launch"),               # genuine launch -> stays
+        ("github", "[some/startup] private beta", "early_stage"),             # github -> tooling
+    ]
+    with db.session_scope() as s:
+        repository.save_raw(s, [
+            RawItemDraft(source=src, external_id=f"e{n}", url="u", title=t, body="b")
+            for n, (src, t, _) in enumerate(items)
+        ])
+    with db.session_scope() as s:
+        by_ext = {r.external_id: r for r in s.exec(select(RawItem)).all()}
+        for n, (_, _, it) in enumerate(items):
+            s.add(Insight(raw_item_id=by_ext[f"e{n}"].id, relevance_score=9, category="Technical Analysis",
+                          item_type=it, region="Global", workflow_stage="Execution",
+                          technical_summary="t", trader_impact="i", model_used="x"))
+    with db.session_scope() as s:
+        assert repository.relabel_recycled_launches(s) == 3
+    with db.session_scope() as s:
+        by_title = {r.title: i for i, r in
+                    s.exec(select(Insight, RawItem).join(RawItem, Insight.raw_item_id == RawItem.id)).all()}
+        assert by_title["[hummingbot/hummingbot] release v2.12.0"].item_type == "tooling"
+        assert by_title["[freqtrade releases] 2026.1"].item_type == "tooling"
+        assert by_title["[some/startup] private beta"].item_type == "tooling"
+        assert by_title["Alpha exchange platform goes live"].item_type == "launch"  # genuine venture kept
+        assert by_title["[hummingbot/hummingbot] release v2.12.0"].workflow_stage is None  # cleared
+    with db.session_scope() as s:
+        assert repository.relabel_recycled_launches(s) == 0  # idempotent
+
+
 def test_prune_quota_keeps_facet_items_below_the_cap(temp_db):
     """A low-scored hiring item survives pruning when a hiring quota is set, even though it
     would be crowded out of the overall top-N by higher-scored launches."""

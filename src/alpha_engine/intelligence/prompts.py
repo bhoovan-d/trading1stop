@@ -66,17 +66,24 @@ trading style; leave empty if none clearly fit):
 - "Risk & Sizing": stop-losses, position sizing, drawdown control, regime/volatility management.
 
 ITEM_TYPE — what KIND of item this is (pick ONE):
-- "launch": a product, feature, platform, screener, copilot, execution algo, data feed, or broker \
-  feature that has SHIPPED and a trader can use now.
-- "funding": a funding round, raise, or acquisition of a trading/fintech company.
-- "early_stage": announced, in beta, or waitlist-only — not generally usable yet.
+- "launch": the market DEBUT of a NEW company / startup / venture — its first product or platform \
+  going live and usable by traders. Reserve this for a genuinely NEW venture entering the market. A \
+  new version, release, changelog, or feature from a company OR project that ALREADY exists is NOT a \
+  launch — it is "tooling".
+- "funding": a funding round, raise (seed/Series-X), or acquisition of a trading/markets company — \
+  fresh news about a venture, not a product update.
+- "early_stage": a NEW venture in the making — a newly founded startup, or something announced, in \
+  stealth/beta, or waitlist-only and not generally usable yet. This is the bucket for new venture \
+  creations a trader can watch before they ship.
 - "hiring": a job posting or open role at a trading, quant, or HFT firm.
 - "research": a paper, method, backtest, or model write-up (these usually score low — see above).
 - "discussion": a community thread, question, or experience report.
-- "tooling": an update to an existing open-source project, library, or piece of infrastructure. \
-  This is the DEFAULT when nothing else clearly fits.
+- "tooling": an update, new version, release, changelog, or feature of an EXISTING open-source \
+  project, library, tool, company, or platform. This is the DEFAULT when nothing else clearly fits. \
+  A release or new feature from something that already exists is "tooling", never "launch" — this is \
+  where recurring release/update cards belong.
 
-CAPITAL MARKETS FOCUS — for launch / funding items, strongly PREFER capital-markets & trading \
+CAPITAL MARKETS FOCUS — for launch / funding / early_stage items, strongly PREFER capital-markets & trading \
 ventures: exchanges, brokers, trading platforms, execution/OMS/EMS, market-data & analytics, \
 clearing/settlement, custody, prime brokerage, trading infrastructure, and prop/quant tooling. \
 DE-SCORE (1-4) consumer fintech with no trading angle — payments, lending, neobanks, insurance, \
