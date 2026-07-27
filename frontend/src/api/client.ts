@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import type { DemandSignal, InsightPage, Meta, NewsletterList, NewsletterOut } from "../types";
 
 async function getJSON<T>(url: string): Promise<T> {
@@ -43,6 +43,23 @@ export function useInsights(filters: Filters) {
   return useQuery({
     queryKey: ["insights", qs],
     queryFn: () => getJSON<InsightPage>(`/api/insights?${qs}`),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** How many insights load at a time. The feed shows this many up front and keeps the rest behind
+ *  "Load more" — the API caps page_size at 100, so more than this needs a second request anyway. */
+export const BATCH_SIZE = 100;
+
+/** Paginated feed that APPENDS rather than replacing, for the load-more UX. */
+export function useInfiniteInsights(filters: Filters) {
+  const qs = toQuery({ ...filters, page: undefined, page_size: BATCH_SIZE });
+  return useInfiniteQuery({
+    queryKey: ["insights-infinite", qs],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) => getJSON<InsightPage>(`/api/insights?${qs}&page=${pageParam}`),
+    getNextPageParam: (last) =>
+      last.page * last.page_size < last.total ? last.page + 1 : undefined,
     placeholderData: keepPreviousData,
   });
 }

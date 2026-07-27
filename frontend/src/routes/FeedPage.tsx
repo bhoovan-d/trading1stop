@@ -1,11 +1,9 @@
 import { useSearchParams } from "react-router-dom";
-import { useDemandSignals, useInsights, useMeta } from "../api/client";
+import { BATCH_SIZE, useDemandSignals, useInfiniteInsights, useMeta } from "../api/client";
 import { FilterBar, type FilterValues } from "../components/FilterBar";
 import { InsightCard } from "../components/InsightCard";
-import { Pagination } from "../components/Pagination";
 import { SignalCard } from "../components/SignalCard";
 
-const PAGE_SIZE = 20;
 // Newest-first by default: the brief should read as current. "Top" stays one click away.
 const DEFAULT_SORT = "date";
 const FILTER_KEYS = ["category", "approach", "item_type", "timeframe", "market_index", "min_score", "source", "date_from", "date_to", "q"] as const;
@@ -44,14 +42,13 @@ export function FeedPage({
     q: params.get("q") ?? "",
     sort: params.get("sort") ?? DEFAULT_SORT,
   };
-  const page = Math.max(1, Number(params.get("page") ?? "1"));
   const active = FILTER_KEYS.some((k) => values[k] !== "");
 
   function setFilter(key: keyof FilterValues, value: string) {
     const next = new URLSearchParams(params);
     if (value) next.set(key, value);
     else next.delete(key);
-    if (key !== "sort") next.delete("page"); // any filter change returns to page 1
+    // Changing a filter re-runs the query from the first batch (infinite query resets on key change).
     setParams(next, { replace: true });
   }
 
@@ -65,16 +62,8 @@ export function FeedPage({
       else next.delete(key);
       if (key !== "sort") touchedNonSort = true;
     }
-    if (touchedNonSort) next.delete("page");
+    void touchedNonSort;
     setParams(next, { replace: true });
-  }
-
-  function setPage(p: number) {
-    const next = new URLSearchParams(params);
-    if (p <= 1) next.delete("page");
-    else next.set("page", String(p));
-    setParams(next);
-    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function clearAll() {
@@ -83,7 +72,15 @@ export function FeedPage({
     setParams(next, { replace: true });
   }
 
-  const { data, isLoading, isError, isPlaceholderData } = useInsights({
+  const {
+    data,
+    isLoading,
+    isError,
+    isPlaceholderData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteInsights({
     category: lockedCategory ?? (values.category || undefined),
     approach: values.approach || undefined,
     item_type: lockedItemType ?? (values.item_type || undefined),
@@ -98,9 +95,12 @@ export function FeedPage({
     date_to: values.date_to || undefined,
     q: values.q || undefined,
     sort: values.sort as "score" | "date",
-    page,
-    page_size: PAGE_SIZE,
   });
+
+  // Pages accumulate rather than replace, so "Load more" appends to what's already on screen.
+  const items = data?.pages.flatMap((p) => p.items) ?? [];
+  const total = data?.pages[0]?.total ?? 0;
+  const remaining = Math.max(0, total - items.length);
 
   return (
     <div>
@@ -185,9 +185,9 @@ export function FeedPage({
             >
               The Alpha Feed
             </h1>
-            {data && (
+            {total > 0 && (
               <span className="font-mono text-[11px] uppercase tracking-wide tabular-nums text-faint">
-                {data.total.toLocaleString()} {active ? "matching" : "insights"}
+                {total.toLocaleString()} {active ? "matching" : "insights"}
               </span>
             )}
           </div>
@@ -217,7 +217,7 @@ export function FeedPage({
             title="Couldn't load insights"
             body="Is the API running? Start it with: uv run alpha-engine serve"
           />
-        ) : !data || data.items.length === 0 ? (
+        ) : items.length === 0 ? (
           <EmptyState
             title="No insights match"
             body={
@@ -236,14 +236,29 @@ export function FeedPage({
           <div
             className={`space-y-3 transition-opacity duration-200 ${isPlaceholderData ? "opacity-60" : "opacity-100"}`}
           >
-            {data.items.map((insight, i) => (
+            {items.map((insight, i) => (
               <InsightCard key={insight.id} insight={insight} index={i} />
             ))}
           </div>
         )}
 
-        {data && (
-          <Pagination page={page} pageSize={PAGE_SIZE} total={data.total} onPage={setPage} />
+        {items.length > 0 && (
+          <div className="mt-8 flex flex-col items-center gap-2">
+            <span className="font-mono text-xs text-faint">
+              Showing {items.length} of {total}
+            </span>
+            {hasNextPage && (
+              <button
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="rounded-md border border-border bg-surface px-4 py-2 font-mono text-xs text-muted shadow-[var(--shadow-sm)] transition-colors enabled:hover:border-border-strong enabled:hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {isFetchingNextPage
+                  ? "Loading…"
+                  : `Load ${Math.min(BATCH_SIZE, remaining)} more`}
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>
