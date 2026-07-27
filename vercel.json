@@ -1,6 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
 
+  "buildCommand": "npm run build && cp -r frontend/dist/. .",
+
   "functions": {
     "api/index.py": {
       "includeFiles": "{src/**,index.html,assets/**}",
