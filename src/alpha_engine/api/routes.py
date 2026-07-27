@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_
 from sqlmodel import Session, select
 
-from ..config import COMMUNITY_SOURCES
+from ..config import COMMUNITY_SOURCES, get_settings
 from ..db import get_engine
 from ..models import Approach, Category, Insight, ItemType, RawItem, Region
 from ..newsletter.generate import available_dates, markdown_for_date
@@ -21,6 +21,16 @@ router = APIRouter(prefix="/api")
 def get_session() -> Iterator[Session]:
     with Session(get_engine()) as session:
         yield session
+
+
+def _published():
+    """When the item was PUBLISHED by its source, for date filtering and the freshness window.
+
+    ``RawItem.created_at`` is the source's own timestamp but is nullable (not every feed gives one),
+    so fall back to synthesis time. This is the same value the card renders, so a "last 7 days"
+    filter now agrees with the date the user sees.
+    """
+    return func.coalesce(RawItem.created_at, Insight.created_at)
 
 
 def _apply_filters(
@@ -37,6 +47,7 @@ def _apply_filters(
     date_from: date | None,
     date_to: date | None,
     q: str | None,
+    max_age_days: int | None = None,
 ):
     if category:
         stmt = stmt.where(Insight.category == category)
@@ -62,10 +73,17 @@ def _apply_filters(
         stmt = stmt.where(RawItem.source.in_(COMMUNITY_SOURCES))
     elif stream == "alpha":
         stmt = stmt.where(RawItem.source.not_in(COMMUNITY_SOURCES))
+    # Date filters run on the PUBLISH date, not synthesis time — otherwise a years-old article
+    # scored today would pass a "last 24h" filter while displaying its real (old) date.
     if date_from is not None:
-        stmt = stmt.where(Insight.created_at >= datetime.combine(date_from, time.min))
+        stmt = stmt.where(_published() >= datetime.combine(date_from, time.min))
     if date_to is not None:
-        stmt = stmt.where(Insight.created_at <= datetime.combine(date_to, time.max))
+        stmt = stmt.where(_published() <= datetime.combine(date_to, time.max))
+    # Default freshness window, applied only when the caller asked for no explicit range — so
+    # deep-linked/archive queries can still reach older material.
+    if max_age_days is not None and date_from is None and date_to is None:
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=max_age_days)
+        stmt = stmt.where(_published() >= cutoff)
     if q:
         like = f"%{q}%"
         stmt = stmt.where(
@@ -92,7 +110,7 @@ def list_insights(
     date_from: date | None = Query(None),
     date_to: date | None = Query(None),
     q: str | None = Query(None, description="Search summary / impact / title"),
-    sort: str = Query("score", pattern="^(score|date)$"),
+    sort: str = Query("date", pattern="^(score|date)$"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
 ) -> InsightPage:
@@ -101,6 +119,7 @@ def list_insights(
         exclude_item_type=exclude_item_type, region=region,
         min_score=min_score, source=source, stream=stream,
         date_from=date_from, date_to=date_to, q=q,
+        max_age_days=get_settings().max_insight_age_days,
     )
 
     base = select(Insight, RawItem).join(RawItem, Insight.raw_item_id == RawItem.id)
@@ -113,9 +132,11 @@ def list_insights(
     total = session.exec(count_stmt).one()
 
     if sort == "date":
-        base = base.order_by(Insight.created_at.desc())
+        # Newest by PUBLISH date (what the card shows) — ordering by synthesis time would rank a
+        # backlog by when the LLM happened to reach it, which has nothing to do with recency.
+        base = base.order_by(_published().desc())
     else:
-        base = base.order_by(Insight.relevance_score.desc(), Insight.created_at.desc())
+        base = base.order_by(Insight.relevance_score.desc(), _published().desc())
 
     rows = session.exec(base.offset((page - 1) * page_size).limit(page_size)).all()
     items = [InsightOut.from_row(insight, raw) for insight, raw in rows]

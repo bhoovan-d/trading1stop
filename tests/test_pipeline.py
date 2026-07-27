@@ -348,6 +348,73 @@ def test_exclude_item_type_hides_venture_from_query(temp_db):
         assert sorted(i.item_type for i, _ in rows) == ["tooling"]  # funding excluded
 
 
+def _feed_filters(**overrides):
+    """Baseline no-op filter kwargs for `_apply_filters`, overridable per test."""
+    base = dict(category=None, approach=None, item_type=None, exclude_item_type=None,
+                region=None, min_score=None, source=None, stream=None,
+                date_from=None, date_to=None, q=None)
+    base.update(overrides)
+    return base
+
+
+def _insight_published(session, external_id, published, **kw):
+    """Attach an Insight (synthesized NOW) to a RawItem published at `published`."""
+    raw = session.exec(select(RawItem).where(RawItem.external_id == external_id)).one()
+    raw.created_at = published
+    session.add(raw)
+    session.add(Insight(raw_item_id=raw.id, relevance_score=kw.get("score", 8),
+                        category="Technical Analysis", item_type=kw.get("item_type", "tooling"),
+                        region="Global", technical_summary="t", trader_impact="i", model_used="x"))
+
+
+def test_date_filter_uses_publish_date_not_synthesis_time(temp_db):
+    """Regression: an OLD article scored today must NOT pass a 'last 24h' filter.
+
+    The card renders RawItem.created_at (publish date) while the filter used to run on
+    Insight.created_at (synthesis time), so backlog items looked fresh but displayed old dates."""
+    from datetime import datetime, timedelta
+    from alpha_engine.api.routes import _apply_filters
+
+    now = datetime.utcnow()
+    with db.session_scope() as s:
+        repository.save_raw(s, [
+            RawItemDraft(source="rss", external_id="old", url="u", title="two years old", body="b"),
+            RawItemDraft(source="rss", external_id="new", url="u", title="today", body="b"),
+        ])
+    with db.session_scope() as s:
+        _insight_published(s, "old", now - timedelta(days=730))  # published long ago, scored now
+        _insight_published(s, "new", now - timedelta(hours=2))
+    yesterday = (now - timedelta(days=1)).date()
+    with db.session_scope() as s:
+        base = select(Insight, RawItem).join(RawItem, Insight.raw_item_id == RawItem.id)
+        rows = s.exec(_apply_filters(base, **_feed_filters(date_from=yesterday))).all()
+        assert [r.title for _, r in rows] == ["today"]  # the 2-year-old item is excluded
+
+
+def test_max_age_window_hides_stale_items(temp_db):
+    """The default freshness window drops old items, and an explicit range opts out of it."""
+    from datetime import datetime, timedelta
+    from alpha_engine.api.routes import _apply_filters
+
+    now = datetime.utcnow()
+    with db.session_scope() as s:
+        repository.save_raw(s, [
+            RawItemDraft(source="rss", external_id="stale", url="u", title="stale", body="b"),
+            RawItemDraft(source="rss", external_id="fresh", url="u", title="fresh", body="b"),
+        ])
+    with db.session_scope() as s:
+        _insight_published(s, "stale", now - timedelta(days=90))
+        _insight_published(s, "fresh", now - timedelta(days=2))
+    with db.session_scope() as s:
+        base = select(Insight, RawItem).join(RawItem, Insight.raw_item_id == RawItem.id)
+        rows = s.exec(_apply_filters(base, **_feed_filters(max_age_days=30))).all()
+        assert [r.title for _, r in rows] == ["fresh"]
+        # An explicit date_from disables the window so the archive stays reachable.
+        old = (now - timedelta(days=365)).date()
+        rows = s.exec(_apply_filters(base, **_feed_filters(max_age_days=30, date_from=old))).all()
+        assert sorted(r.title for _, r in rows) == ["fresh", "stale"]
+
+
 def test_prune_quota_keeps_facet_items_below_the_cap(temp_db):
     """A low-scored hiring item survives pruning when a hiring quota is set, even though it
     would be crowded out of the overall top-N by higher-scored launches."""
