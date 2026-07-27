@@ -14,6 +14,7 @@ from ..db import get_engine
 from ..models import (
     Approach,
     Category,
+    DemandSignal,
     Insight,
     ItemType,
     MarketIndex,
@@ -22,7 +23,15 @@ from ..models import (
     Timeframe,
 )
 from ..newsletter.generate import available_dates, markdown_for_date
-from .schemas import InsightOut, InsightPage, MetaOut, NewsletterList, NewsletterOut, SourceHealthOut
+from .schemas import (
+    DemandSignalOut,
+    InsightOut,
+    InsightPage,
+    MetaOut,
+    NewsletterList,
+    NewsletterOut,
+    SourceHealthOut,
+)
 
 router = APIRouter(prefix="/api")
 
@@ -216,6 +225,17 @@ def get_source_health(session: Session = Depends(get_session)) -> list[SourceHea
     from ..storage.repository import source_health
 
     return [SourceHealthOut(**item) for item in source_health(session)]
+
+
+@router.get("/demand-signals", response_model=list[DemandSignalOut])
+def list_demand_signals(session: Session = Depends(get_session)) -> list[DemandSignalOut]:
+    """What traders keep asking for — recurring needs distilled across community posts."""
+    rows = session.exec(
+        select(DemandSignal).order_by(
+            DemandSignal.mention_count.desc(), DemandSignal.created_at.desc()
+        )
+    ).all()
+    return [DemandSignalOut.from_row(r) for r in rows]
 
 
 @router.get("/newsletters", response_model=NewsletterList)

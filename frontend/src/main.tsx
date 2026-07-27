@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { FeedPage } from "./routes/FeedPage";
+import { PainPointsPage } from "./routes/PainPointsPage";
 import { NewsletterPage } from "./routes/NewsletterPage";
 import "@fontsource-variable/fraunces";
 import "@fontsource-variable/inter";
@@ -28,6 +29,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="quant-firms" element={<FeedPage stream="alpha" lockedCategory="Quant Firms" />} />
             <Route path="india" element={<FeedPage lockedRegion="India" excludeItemType="hiring" />} />
             <Route path="community" element={<FeedPage stream="community" />} />
+            <Route path="pain-points" element={<PainPointsPage />} />
             <Route path="newsletter" element={<NewsletterPage />} />
             <Route path="newsletter/:date" element={<NewsletterPage />} />
           </Route>

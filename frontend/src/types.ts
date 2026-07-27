@@ -52,3 +52,19 @@ export interface NewsletterOut {
   date: string;
   markdown: string;
 }
+
+export interface DemandEvidence {
+  title: string;
+  url: string;
+}
+
+export interface DemandSignal {
+  id: number;
+  question: string;
+  summary: string;
+  opportunity: string;
+  mention_count: number;
+  region: string;
+  evidence: DemandEvidence[];
+  created_at: string;
+}

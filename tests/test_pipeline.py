@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 from collections import Counter
 
 import pytest
@@ -526,3 +527,53 @@ def test_discovered_source_promotes_after_three_qualifying_insights(temp_db):
         assert source.status == "active"
         health = repository.source_health(s)
         assert health[0]["qualifying_insights_30d"] == 3
+
+
+def test_demand_signal_parser_requires_two_evidence_posts(temp_db):
+    """A 'recurring' need must be evidenced by >=2 real posts — the whole premise is repetition,
+    so a single-post or unresolvable cluster is dropped no matter what the model claimed."""
+    from alpha_engine.intelligence.demand import _parse
+
+    posts = {
+        1: RawItem(id=1, source="reddit", external_id="a", url="u1", title="automate nifty options"),
+        2: RawItem(id=2, source="reddit", external_id="b", url="u2", title="bank nifty bot help"),
+    }
+    body = json.dumps({"signals": [
+        {"question": "How do I automate NIFTY options?", "summary": "s",
+         "opportunity": "o", "region": "India", "post_ids": [1, 2]},
+        {"question": "one-off question", "summary": "s", "opportunity": "o",
+         "region": "Global", "post_ids": [1]},                    # only 1 post -> dropped
+        {"question": "hallucinated ids", "summary": "s", "opportunity": "o",
+         "region": "Global", "post_ids": [99, 100]},              # unresolvable -> dropped
+    ]})
+    out = _parse(body, posts)
+    assert len(out) == 1
+    assert out[0]["region"] == "India"
+    assert len(out[0]["evidence"]) == 2
+    assert out[0]["evidence"][0]["url"] == "u1"
+
+
+def test_demand_signal_parser_survives_garbage(temp_db):
+    from alpha_engine.intelligence.demand import _parse
+
+    assert _parse("not json at all", {}) == []
+    assert _parse('{"signals": "wrong type"}', {}) == []
+
+
+def test_demand_signal_parser_recovers_truncated_json(temp_db):
+    """Free-tier models often hit the token ceiling mid-list. The complete signals emitted before
+    the cutoff are still good, so they must survive rather than the whole batch being lost."""
+    from alpha_engine.intelligence.demand import _parse
+
+    posts = {
+        1: RawItem(id=1, source="reddit", external_id="a", url="u1", title="data api costs"),
+        2: RawItem(id=2, source="reddit", external_id="b", url="u2", title="cheap market data"),
+    }
+    truncated = (
+        '{"signals": [{"question": "Where can I get cheap data?", "summary": "s", '
+        '"opportunity": "o", "region": "Global", "post_ids": [1, 2]}, '
+        '{"question": "half a signal", "summary": "cut off mid'
+    )
+    out = _parse(truncated, posts)
+    assert len(out) == 1  # the complete signal is recovered
+    assert out[0]["question"] == "Where can I get cheap data?"

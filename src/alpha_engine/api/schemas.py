@@ -93,6 +93,42 @@ class MetaOut(BaseModel):
     community_count: int
 
 
+class DemandEvidence(BaseModel):
+    title: str
+    url: str
+
+
+class DemandSignalOut(BaseModel):
+    id: int
+    question: str
+    summary: str
+    opportunity: str
+    mention_count: int
+    region: str
+    evidence: list[DemandEvidence]
+    created_at: datetime
+
+    @classmethod
+    def from_row(cls, row) -> "DemandSignalOut":
+        try:
+            raw = json.loads(row.evidence_json or "[]")
+        except (json.JSONDecodeError, TypeError):
+            raw = []
+        return cls(
+            id=row.id,
+            question=row.question,
+            summary=row.summary,
+            opportunity=row.opportunity,
+            mention_count=row.mention_count,
+            region=row.region,
+            evidence=[
+                DemandEvidence(title=str(e.get("title", "")), url=str(e.get("url", "")))
+                for e in raw if isinstance(e, dict)
+            ],
+            created_at=row.created_at,
+        )
+
+
 class SourceHealthOut(BaseModel):
     source_key: str
     name: str

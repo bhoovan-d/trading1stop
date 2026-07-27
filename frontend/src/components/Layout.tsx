@@ -51,6 +51,7 @@ export function Layout() {
             <NavItem to="/jobs" label="Jobs" />
             <NavItem to="/quant-firms" label="Quant Firms" />
             <NavItem to="/india" label="India" />
+            <NavItem to="/pain-points" label="What Traders Want" />
             <NavItem to="/community" label="Community" />
             <NavItem to="/newsletter" label="Newsletter" />
           </nav>

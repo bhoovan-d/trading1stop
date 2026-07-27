@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import type { InsightPage, Meta, NewsletterList, NewsletterOut } from "../types";
+import type { DemandSignal, InsightPage, Meta, NewsletterList, NewsletterOut } from "../types";
 
 async function getJSON<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -63,5 +63,12 @@ export function useNewsletter(date?: string) {
     queryKey: ["newsletter", date],
     queryFn: () => getJSON<NewsletterOut>(`/api/newsletters/${date}`),
     enabled: Boolean(date),
+  });
+}
+
+export function useDemandSignals() {
+  return useQuery({
+    queryKey: ["demand-signals"],
+    queryFn: () => getJSON<DemandSignal[]>("/api/demand-signals"),
   });
 }

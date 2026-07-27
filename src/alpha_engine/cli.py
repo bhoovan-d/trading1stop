@@ -62,6 +62,18 @@ def relabel_launches_cmd() -> None:
     typer.echo(f"Relabeled {changed} recycled launch card(s) -> tooling")
 
 
+@app.command("demand-signals")
+def demand_signals_cmd(
+    days: int = typer.Option(14, help="How far back to read community posts."),
+    max_posts: int = typer.Option(120, help="Max posts to hand the model in one pass."),
+) -> None:
+    """Find the questions traders keep asking (Pain Points), clustered across community posts."""
+    from .intelligence.demand import detect_demand_signals
+
+    count = detect_demand_signals(days=days, max_posts=max_posts)
+    typer.echo(f"Stored {count} demand signal(s).")
+
+
 @app.command("requeue-ventures")
 def requeue_ventures_cmd() -> None:
     """Requeue funding/startup items so the next run re-scores them under the venture rules.

@@ -24,6 +24,7 @@ reddit:
   subreddits:
     - algotrading
     - quant
+    - options              # where "how do I automate this?" questions concentrate
     - IndianStreetBets
     - IndianStockMarket
   listing: top          # top | hot | new
@@ -76,6 +77,29 @@ rss:
       screen: markets
     - name: "Crunchbase News"
       url: "https://news.crunchbase.com/feed/"
+      screen: markets
+    # ── Indian startup / fintech ecosystem — funding + new ventures (screen: markets) ──
+    # (Entrackr serves its feed at /rss, not /feed. Tracxn and Business Standard expose no
+    # parseable feed; YourStory's per-category feeds are empty, so the main feed is used.)
+    - name: "Entrackr"
+      url: "https://entrackr.com/rss"
+      screen: markets
+    - name: "YourStory"
+      url: "https://yourstory.com/feed"
+      screen: markets
+    - name: "Economic Times Startups"
+      url: "https://economictimes.indiatimes.com/tech/startups/rssfeeds/78570530.cms"
+      screen: markets
+    # Indian market coverage — feeds the India tab and the index-level view.
+    - name: "Moneycontrol Markets"
+      url: "https://www.moneycontrol.com/rss/marketreports.xml"
+      screen: ai
+    - name: "ET Markets Stocks"
+      url: "https://economictimes.indiatimes.com/markets/stocks/rssfeeds/2146842.cms"
+      screen: ai
+    # New product discovery — screened hard, since most of Product Hunt is off-topic.
+    - name: "Product Hunt"
+      url: "https://www.producthunt.com/feed"
       screen: markets
 
   # Ingest screen keyword groups. Matched case-insensitively as whole WORDS (word boundaries),

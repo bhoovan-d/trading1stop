@@ -92,6 +92,10 @@ def init_db() -> None:
             conn.execute(text("CREATE INDEX IF NOT EXISTS ix_insight_timeframe ON insight (timeframe)"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS ix_insight_market_index ON insight (market_index)"))
             conn.execute(text("INSERT INTO schema_migrations (version) VALUES (5)"))
+        if 6 not in versions:
+            # demandsignal is a brand-new table, so create_all() above already made it; this
+            # entry just records the version so the intent is visible in the migration history.
+            conn.execute(text("INSERT INTO schema_migrations (version) VALUES (6)"))
 
 
 def recreate_insight_tables() -> None:

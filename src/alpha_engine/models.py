@@ -164,6 +164,28 @@ class DailyBrief(SQLModel, table=True):
     generated_at: datetime = Field(default_factory=_utcnow)
 
 
+class DemandSignal(SQLModel, table=True):
+    """A recurring question/problem traders are asking, distilled from many community posts.
+
+    Unlike an :class:`Insight` (one row per source item), a demand signal is synthesized ACROSS
+    items: "12 traders asked how to automate NIFTY options this week" is the unit of value, since
+    repeated demand with no good answer is a product opportunity. ``evidence_json`` holds the
+    threads behind it — ``[{"title": ..., "url": ...}, …]`` — so every claim stays checkable.
+    """
+
+    id: int | None = Field(default=None, primary_key=True)
+    question: str                              # the recurring ask, in traders' own words
+    summary: str                               # what people are actually struggling with
+    opportunity: str                           # why this is a gap worth filling
+    mention_count: int = Field(default=1, index=True)
+    region: str = Field(default="Global", index=True)   # stores Region.value
+    evidence_json: str = "[]"
+    period_start: datetime
+    period_end: datetime
+    model_used: str = ""
+    created_at: datetime = Field(default_factory=_utcnow, index=True)
+
+
 class InsightExtraction(BaseModel):
     """Structured output contract every LLM provider must return for a raw item.
 
