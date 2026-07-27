@@ -6,6 +6,8 @@ export interface Insight {
   item_type: string;
   region: string;
   workflow_stage?: string | null;
+  timeframe?: string | null;
+  market_index?: string | null;
   technical_summary: string;
   trader_impact: string;
   model_used: string;
@@ -30,6 +32,8 @@ export interface Meta {
   approaches: string[];
   item_types: string[];
   regions: string[];
+  timeframes: string[];
+  market_indexes: string[];
   sources: string[];
   score_min: number;
   score_max: number;

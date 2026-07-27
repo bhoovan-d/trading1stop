@@ -7,7 +7,7 @@ import { Pagination } from "../components/Pagination";
 const PAGE_SIZE = 20;
 // Newest-first by default: the brief should read as current. "Top" stays one click away.
 const DEFAULT_SORT = "date";
-const FILTER_KEYS = ["category", "approach", "item_type", "min_score", "source", "date_from", "date_to", "q"] as const;
+const FILTER_KEYS = ["category", "approach", "item_type", "timeframe", "market_index", "min_score", "source", "date_from", "date_to", "q"] as const;
 
 export function FeedPage({
   stream,
@@ -34,6 +34,8 @@ export function FeedPage({
     category: params.get("category") ?? "",
     approach: params.get("approach") ?? "",
     item_type: params.get("item_type") ?? "",
+    timeframe: params.get("timeframe") ?? "",
+    market_index: params.get("market_index") ?? "",
     min_score: params.get("min_score") ?? "",
     source: params.get("source") ?? "",
     date_from: params.get("date_from") ?? "",
@@ -86,6 +88,8 @@ export function FeedPage({
     item_type: lockedItemType ?? (values.item_type || undefined),
     exclude_item_type: excludeItemType,
     region: lockedRegion ?? undefined,
+    timeframe: values.timeframe || undefined,
+    market_index: values.market_index || undefined,
     min_score: values.min_score ? Number(values.min_score) : undefined,
     source: values.source || undefined,
     stream,

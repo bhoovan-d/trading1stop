@@ -87,6 +87,8 @@ export function InsightCard({ insight, index }: { insight: Insight; index: numbe
             <CategoryTag category={insight.category} />
             {isBadgeItemType(insight.item_type) && <ItemTypeBadge itemType={insight.item_type} />}
             {insight.region === "India" && <RegionBadge />}
+            {insight.market_index && <ApproachTag label={insight.market_index} />}
+            {insight.timeframe && <ApproachTag label={insight.timeframe} />}
             {insight.approaches?.map((a) => (
               <ApproachTag key={a} label={a} />
             ))}

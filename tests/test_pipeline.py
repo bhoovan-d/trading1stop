@@ -416,6 +416,38 @@ def test_max_age_window_hides_stale_items(temp_db):
         assert sorted(r.title for _, r in rows) == ["fresh", "stale"]
 
 
+def test_timeframe_and_index_filters(temp_db):
+    """The depth axes filter independently: '1-15 min' isolates fast intraday setups, and the
+    index filter isolates Bank Nifty material."""
+    from alpha_engine.api.routes import _apply_filters
+
+    rows = [
+        ("scalp", "1-15 min", "Bank Nifty"),
+        ("swing", "Multi-day", "Nifty 50"),
+        ("tool", None, None),
+    ]
+    with db.session_scope() as s:
+        repository.save_raw(s, [
+            RawItemDraft(source="rss", external_id=e, url="u", title=e, body="b")
+            for e, _, _ in rows
+        ])
+    with db.session_scope() as s:
+        by = {r.external_id: r for r in s.exec(select(RawItem)).all()}
+        for e, tf, idx in rows:
+            s.add(Insight(raw_item_id=by[e].id, relevance_score=8, category="Intraday Trading",
+                          item_type="tooling", region="India", timeframe=tf, market_index=idx,
+                          technical_summary="t", trader_impact="i", model_used="x"))
+    base = select(Insight, RawItem).join(RawItem, Insight.raw_item_id == RawItem.id)
+    with db.session_scope() as s:
+        fast = s.exec(_apply_filters(base, **_feed_filters(timeframe="1-15 min"))).all()
+        assert [r.title for _, r in fast] == ["scalp"]
+        bn = s.exec(_apply_filters(base, **_feed_filters(market_index="Bank Nifty"))).all()
+        assert [r.title for _, r in bn] == ["scalp"]
+        # Items with no holding period are simply absent from a timeframe-filtered view.
+        multi = s.exec(_apply_filters(base, **_feed_filters(timeframe="Multi-day"))).all()
+        assert [r.title for _, r in multi] == ["swing"]
+
+
 def test_per_source_cap_limits_one_repo_but_spares_adapter_wide_sources(temp_db):
     """One busy repo can't fill the feed — but adapter-level sources (all job boards share
     source_key 'adapter:careers') and hiring items are exempt, so /jobs isn't gutted."""

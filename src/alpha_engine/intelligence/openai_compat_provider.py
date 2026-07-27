@@ -19,8 +19,10 @@ from ..models import (
     Category,
     InsightExtraction,
     ItemType,
+    MarketIndex,
     RawItem,
     Region,
+    Timeframe,
     WorkflowStage,
 )
 from .prompts import JSON_INSTRUCTION, SYSTEM_PROMPT, build_user_prompt
@@ -31,6 +33,27 @@ _APPROACH_LOOKUP = {a.value.lower(): a.value for a in Approach}
 _ITEM_TYPE_LOOKUP = {t.value.lower(): t.value for t in ItemType}
 _REGION_LOOKUP = {r.value.lower(): r.value for r in Region}
 _WORKFLOW_LOOKUP = {w.value.lower(): w.value for w in WorkflowStage}
+_TIMEFRAME_LOOKUP = {t.value.lower(): t.value for t in Timeframe}
+_INDEX_LOOKUP = {i.value.lower(): i.value for i in MarketIndex}
+
+# How models actually phrase these in the wild.
+_TIMEFRAME_LOOKUP.update({
+    "scalping": Timeframe.SCALP.value, "scalp": Timeframe.SCALP.value,
+    "1-15min": Timeframe.SCALP.value, "1-15 minutes": Timeframe.SCALP.value,
+    "1m-15m": Timeframe.SCALP.value, "intraday (1-15 min)": Timeframe.SCALP.value,
+    "15-60min": Timeframe.SHORT_INTRADAY.value, "15-60 minutes": Timeframe.SHORT_INTRADAY.value,
+    "1 hour-1 day": Timeframe.INTRADAY.value, "hourly": Timeframe.INTRADAY.value,
+    "intraday": Timeframe.INTRADAY.value, "daily": Timeframe.INTRADAY.value,
+    "multi day": Timeframe.MULTI_DAY.value, "multiday": Timeframe.MULTI_DAY.value,
+    "swing": Timeframe.MULTI_DAY.value, "positional": Timeframe.MULTI_DAY.value,
+})
+_INDEX_LOOKUP.update({
+    "nifty": MarketIndex.NIFTY_50.value, "nifty50": MarketIndex.NIFTY_50.value,
+    "nifty 50 index": MarketIndex.NIFTY_50.value,
+    "banknifty": MarketIndex.BANK_NIFTY.value, "nifty bank": MarketIndex.BANK_NIFTY.value,
+    "finnifty": MarketIndex.FIN_NIFTY.value, "nifty financial services": MarketIndex.FIN_NIFTY.value,
+    "bse sensex": MarketIndex.SENSEX.value,
+})
 
 # Common synonyms a model might emit for the new axes (mapped to canonical enum values).
 _ITEM_TYPE_LOOKUP.update({
@@ -119,6 +142,14 @@ def _normalize_workflow_stage(value: object, item_type: str) -> str | None:
     return None
 
 
+def _normalize_optional(value: object, lookup: dict[str, str]) -> str | None:
+    """Both depth axes are optional: an unknown or absent value means 'does not apply', never a
+    dropped item. Used for timeframe and market_index."""
+    if isinstance(value, str):
+        return lookup.get(value.strip().lower())
+    return None
+
+
 class OpenAICompatProvider:
     """Turns a raw item into an :class:`InsightExtraction` via any OpenAI-compatible API."""
 
@@ -169,6 +200,8 @@ class OpenAICompatProvider:
         item_type = _normalize_item_type(data.get("item_type"), item.source)
         region = _normalize_region(data.get("region"))
         workflow_stage = _normalize_workflow_stage(data.get("workflow_stage"), item_type)
+        timeframe = _normalize_optional(data.get("timeframe"), _TIMEFRAME_LOOKUP)
+        market_index = _normalize_optional(data.get("market_index"), _INDEX_LOOKUP)
 
         try:
             return InsightExtraction(
@@ -178,6 +211,8 @@ class OpenAICompatProvider:
                 item_type=ItemType(item_type),
                 region=Region(region),
                 workflow_stage=WorkflowStage(workflow_stage) if workflow_stage else None,
+                timeframe=Timeframe(timeframe) if timeframe else None,
+                market_index=MarketIndex(market_index) if market_index else None,
                 technical_summary=str(data.get("technical_summary", "")).strip(),
                 trader_impact=str(data.get("trader_impact", "")).strip(),
             )

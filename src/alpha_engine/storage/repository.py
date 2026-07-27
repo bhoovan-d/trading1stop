@@ -229,6 +229,9 @@ def save_insight(
         item_type=item_type,
         region=extraction.region.value,
         workflow_stage=workflow_stage,
+        # A job posting has no holding period; everything else keeps what the model inferred.
+        timeframe=None if is_job else (extraction.timeframe.value if extraction.timeframe else None),
+        market_index=extraction.market_index.value if extraction.market_index else None,
         technical_summary=extraction.technical_summary,
         trader_impact=extraction.trader_impact,
         model_used=model_used,

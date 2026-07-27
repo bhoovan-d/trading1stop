@@ -15,6 +15,8 @@ export interface Filters {
   item_type?: string;
   exclude_item_type?: string;
   region?: string;
+  timeframe?: string;
+  market_index?: string;
   min_score?: number;
   source?: string;
   stream?: "alpha" | "community";

@@ -68,6 +68,26 @@ class WorkflowStage(str, Enum):
     MONITORING = "Monitoring"
 
 
+class Timeframe(str, Enum):
+    """How long a strategy/setup is held. Separates fast 1-15 minute intraday work (what most
+    active retail traders actually run) from slower intraday and multi-day material."""
+
+    SCALP = "1-15 min"          # scalping / fast intraday execution
+    SHORT_INTRADAY = "15-60 min"
+    INTRADAY = "1 hour - 1 day"
+    MULTI_DAY = "Multi-day"
+
+
+class MarketIndex(str, Enum):
+    """The Indian index an item is specifically about. Only set when an item genuinely centres on
+    that index; None for everything else (including generic India content)."""
+
+    NIFTY_50 = "Nifty 50"
+    BANK_NIFTY = "Bank Nifty"
+    FIN_NIFTY = "Fin Nifty"
+    SENSEX = "Sensex"
+
+
 class RawItem(SQLModel, table=True):
     """A single ingested item from any source, before AI filtering.
 
@@ -121,6 +141,8 @@ class Insight(SQLModel, table=True):
     item_type: str = Field(default="tooling", index=True)  # stores ItemType.value
     region: str = Field(default="Global", index=True)      # stores Region.value
     workflow_stage: str | None = None         # stores WorkflowStage.value; only for launch-ish items
+    timeframe: str | None = Field(default=None, index=True)     # stores Timeframe.value
+    market_index: str | None = Field(default=None, index=True)  # stores MarketIndex.value
     technical_summary: str
     trader_impact: str
     model_used: str = ""
@@ -177,6 +199,17 @@ class InsightExtraction(BaseModel):
         default=None,
         description="Only for launch/funding/early_stage items: which part of the trading workflow "
         "it touches — Research, Signal Generation, Execution, Risk, or Monitoring. Null otherwise.",
+    )
+    timeframe: Timeframe | None = PydField(
+        default=None,
+        description="If the item describes a tradeable strategy/setup/signal, how long it is held: "
+        "'1-15 min' (scalping/fast intraday), '15-60 min', '1 hour - 1 day', or 'Multi-day'. Null "
+        "when the item isn't about a specific holding period (tooling, jobs, funding news).",
+    )
+    market_index: MarketIndex | None = PydField(
+        default=None,
+        description="The Indian index this item specifically centres on: 'Nifty 50', 'Bank Nifty', "
+        "'Fin Nifty', or 'Sensex'. Null unless the item is genuinely about that index.",
     )
     technical_summary: str = PydField(
         description="2-3 plain-English sentences a self-directed trader would understand: what it "

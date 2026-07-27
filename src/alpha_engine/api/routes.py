@@ -11,7 +11,16 @@ from sqlmodel import Session, select
 
 from ..config import COMMUNITY_SOURCES, get_settings
 from ..db import get_engine
-from ..models import Approach, Category, Insight, ItemType, RawItem, Region
+from ..models import (
+    Approach,
+    Category,
+    Insight,
+    ItemType,
+    MarketIndex,
+    RawItem,
+    Region,
+    Timeframe,
+)
 from ..newsletter.generate import available_dates, markdown_for_date
 from .schemas import InsightOut, InsightPage, MetaOut, NewsletterList, NewsletterOut, SourceHealthOut
 
@@ -41,7 +50,9 @@ def _apply_filters(
     item_type: str | None,
     exclude_item_type: str | None,
     region: str | None,
-    min_score: int | None,
+    timeframe: str | None = None,
+    market_index: str | None = None,
+    min_score: int | None = None,
     source: str | None,
     stream: str | None,
     date_from: date | None,
@@ -65,6 +76,11 @@ def _apply_filters(
         stmt = stmt.where(Insight.item_type.not_in(excluded))
     if region:
         stmt = stmt.where(Insight.region == region)
+    if timeframe:
+        # Comma-separated so a view can span buckets (e.g. "1-15 min" for fast intraday).
+        stmt = stmt.where(Insight.timeframe.in_([t for t in timeframe.split(",") if t]))
+    if market_index:
+        stmt = stmt.where(Insight.market_index.in_([i for i in market_index.split(",") if i]))
     if min_score is not None:
         stmt = stmt.where(Insight.relevance_score >= min_score)
     if source:
@@ -104,6 +120,8 @@ def list_insights(
     item_type: str | None = Query(None),
     exclude_item_type: str | None = Query(None),
     region: str | None = Query(None),
+    timeframe: str | None = Query(None, description="Holding period, e.g. '1-15 min'"),
+    market_index: str | None = Query(None, description="Indian index, e.g. 'Bank Nifty'"),
     min_score: int | None = Query(None, ge=1, le=10),
     source: str | None = Query(None),
     stream: str | None = Query(None, pattern="^(alpha|community)$"),
@@ -117,6 +135,7 @@ def list_insights(
     filters = dict(
         category=category, approach=approach, item_type=item_type,
         exclude_item_type=exclude_item_type, region=region,
+        timeframe=timeframe, market_index=market_index,
         min_score=min_score, source=source, stream=stream,
         date_from=date_from, date_to=date_to, q=q,
         max_age_days=get_settings().max_insight_age_days,
@@ -179,6 +198,8 @@ def meta(session: Session = Depends(get_session)) -> MetaOut:
         approaches=[a.value for a in Approach],
         item_types=[t.value for t in ItemType],
         regions=[r.value for r in Region],
+        timeframes=[t.value for t in Timeframe],
+        market_indexes=[i.value for i in MarketIndex],
         sources=sorted(sources),
         score_min=score_min or 1,
         score_max=score_max or 10,

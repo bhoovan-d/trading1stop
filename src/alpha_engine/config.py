@@ -68,11 +68,11 @@ class Settings(BaseSettings):
     # (falling back to synthesis time when a source gives no publish date). This — not a top-N cap —
     # is what bounds how much the site shows: a daily brief should read as current, and stale items
     # are what made the feed feel repetitive. Set to None to show the full archive.
-    max_insight_age_days: int | None = 30
+    max_insight_age_days: int | None = 90
     # Diversity cap: how many insights ONE resource (a single repo or feed) may contribute. Without
     # it a busy project fills the page with near-identical cards — which reads as "repeated stuff"
     # even though every card is distinct. Adapter-wide sources and job posts are exempt.
-    per_source_keep: int | None = 5
+    per_source_keep: int | None = 10
     # Guaranteed per-tab minimums so the specialized tabs never go empty when a top-N cap is in
     # effect. With the caps set to None (unlimited) above these are redundant but harmless; they
     # still act as floors if a numeric cap is ever restored.

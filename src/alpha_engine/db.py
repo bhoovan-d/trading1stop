@@ -80,6 +80,18 @@ def init_db() -> None:
             conn.execute(text("CREATE INDEX IF NOT EXISTS ix_insight_item_type ON insight (item_type)"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS ix_insight_region ON insight (region)"))
             conn.execute(text("INSERT INTO schema_migrations (version) VALUES (4)"))
+        if 5 not in versions:
+            # Depth axes: timeframe (1-15 min … multi-day) so the Intraday view can isolate fast
+            # setups, and market_index (Nifty 50 / Bank Nifty / …) for an index-level India feed.
+            # Both nullable — they only apply to items that genuinely carry that meaning.
+            columns = {column["name"] for column in inspect(conn).get_columns("insight")}
+            if "timeframe" not in columns:
+                conn.execute(text("ALTER TABLE insight ADD COLUMN timeframe VARCHAR"))
+            if "market_index" not in columns:
+                conn.execute(text("ALTER TABLE insight ADD COLUMN market_index VARCHAR"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_insight_timeframe ON insight (timeframe)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_insight_market_index ON insight (market_index)"))
+            conn.execute(text("INSERT INTO schema_migrations (version) VALUES (5)"))
 
 
 def recreate_insight_tables() -> None:
