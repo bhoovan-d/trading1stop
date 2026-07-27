@@ -96,6 +96,16 @@ def init_db() -> None:
             # demandsignal is a brand-new table, so create_all() above already made it; this
             # entry just records the version so the intent is visible in the migration history.
             conn.execute(text("INSERT INTO schema_migrations (version) VALUES (6)"))
+        if 7 not in versions:
+            # demandsignal gains `kind` so the same table carries community demand signals and
+            # quant-firm trend signals (identical shape — see the model docstring).
+            columns = {column["name"] for column in inspect(conn).get_columns("demandsignal")}
+            if "kind" not in columns:
+                conn.execute(text(
+                    "ALTER TABLE demandsignal ADD COLUMN kind VARCHAR NOT NULL DEFAULT 'demand'"
+                ))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_demandsignal_kind ON demandsignal (kind)"))
+            conn.execute(text("INSERT INTO schema_migrations (version) VALUES (7)"))
 
 
 def recreate_insight_tables() -> None:

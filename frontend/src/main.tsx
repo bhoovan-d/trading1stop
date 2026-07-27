@@ -21,12 +21,12 @@ createRoot(document.getElementById("root")!).render(
         <Routes>
           <Route element={<Layout />}>
             {/* Tabs are kept as far apart as possible: each route excludes what another tab owns,
-                so the same insight doesn't show up in three places. Jobs live only in /jobs (and
-                /quant-firms, where firm hiring IS the signal). */}
+                so the same insight doesn't show up in three places. Raw job postings live ONLY in
+                /jobs — /quant-firms shows synthesized firm signals instead of individual roles. */}
             <Route index element={<FeedPage stream="alpha" excludeItemType="launch,funding,early_stage,hiring" />} />
             <Route path="launches" element={<FeedPage stream="alpha" lockedItemType="launch,funding,early_stage" />} />
             <Route path="jobs" element={<FeedPage stream="alpha" lockedItemType="hiring" />} />
-            <Route path="quant-firms" element={<FeedPage stream="alpha" lockedCategory="Quant Firms" />} />
+            <Route path="quant-firms" element={<FeedPage stream="alpha" lockedCategory="Quant Firms" excludeItemType="hiring" />} />
             <Route path="india" element={<FeedPage lockedRegion="India" excludeItemType="hiring" />} />
             <Route path="community" element={<FeedPage stream="community" />} />
             <Route path="pain-points" element={<PainPointsPage />} />

@@ -71,6 +71,7 @@ def run_pipeline(
     # Demand signals read the community stream as a whole, so they run after synthesis but are
     # never fatal — a provider outage here must not cost us the rest of the run.
     demand_count = 0
+    firm_count = 0
     if not skip_synthesis:
         from .intelligence.demand import detect_demand_signals
 
@@ -78,6 +79,13 @@ def run_pipeline(
             demand_count = detect_demand_signals()
         except Exception as exc:  # noqa: BLE001
             logger.warning(f"[demand] pass failed (non-fatal): {exc}")
+
+        from .intelligence.firms import detect_firm_signals
+
+        try:
+            firm_count = detect_firm_signals()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"[firms] pass failed (non-fatal): {exc}")
 
     newsletter_path = None
     if not skip_newsletter:
@@ -95,6 +103,7 @@ def run_pipeline(
         "by_tier": stats.by_tier,
         "newsletter": newsletter_path,
         "demand_signals": demand_count,
+        "firm_signals": firm_count,
         "pruned": pruned,
         "suspended_sources": suspended_sources,
     }

@@ -1,12 +1,19 @@
-"""Reddit ingestion via public subreddit RSS feeds — no OAuth/credentials required.
+"""Reddit ingestion — authenticated via PRAW when credentials exist, anonymous RSS otherwise.
 
-Reddit exposes an RSS feed for every subreddit listing (e.g.
-``https://www.reddit.com/r/algotrading/top/.rss?t=week``), so we can pull community
-threads without a registered app. This is a *community-stream* source: its content is
-discussion rather than shipped engineering, and it's held to a lower relevance bar.
+This is a *community-stream* source: discussion rather than shipped engineering, held to a lower
+relevance bar, and now also the raw material for demand-signal clustering.
 
-Reddit rate-limits anonymous requests per-IP fairly aggressively, so each feed fetch retries
-on HTTP 429 with backoff (honoring ``Retry-After``), and there's a polite gap between feeds.
+Two paths, same output:
+
+* **OAuth (preferred).** With ``REDDIT_CLIENT_ID``/``REDDIT_CLIENT_SECRET`` set, PRAW reads in
+  read-only (client-credentials) mode. Reddit allows authenticated clients ~100 requests/minute,
+  versus throttling anonymous per-IP traffic hard enough that most subreddits return 429 every run.
+  This path also exposes each post's score, so ``min_score`` finally means something.
+* **Anonymous RSS (fallback).** The original public-feed path, kept so the pipeline still works with
+  no credentials configured — degrade, never fail.
+
+Both emit the same ``external_id`` (the ``t3_…`` fullname), so dedup is unaffected by which path ran
+and switching between them never re-ingests.
 """
 
 from __future__ import annotations
@@ -88,13 +95,86 @@ class RedditSource(Source):
             return f"https://www.reddit.com/r/{sub}/{listing}/.rss"
         return f"https://www.reddit.com/r/{sub}/top/.rss?t={self.cfg.time_filter}"
 
+    def _client(self):
+        """A read-only PRAW client, or None when credentials aren't configured."""
+        if not (self.settings.reddit_client_id and self.settings.reddit_client_secret):
+            return None
+        try:
+            import praw
+
+            client = praw.Reddit(
+                client_id=self.settings.reddit_client_id,
+                client_secret=self.settings.reddit_client_secret,
+                user_agent=self.settings.reddit_user_agent,
+                check_for_async=False,
+            )
+            client.read_only = True
+            return client
+        except Exception as exc:  # noqa: BLE001 — bad creds must not sink the run
+            logger.warning(f"[reddit] OAuth unavailable ({exc}) — falling back to public RSS.")
+            return None
+
     def fetch(self) -> Iterable[RawItemDraft]:
+        client = self._client()
+        if client is not None:
+            logger.info("[reddit] using authenticated API (read-only).")
+            yield from self._fetch_oauth(client)
+            return
+        logger.info("[reddit] no credentials — using public RSS (expect rate limits).")
+        yield from self._fetch_rss()
+
+    def _fetch_oauth(self, client) -> Iterable[RawItemDraft]:
         limit = self.settings.max_items_per_source
+        min_score = self.cfg.min_score or 0
+        failures = 0
+        for sub in self.cfg.subreddits:
+            try:
+                subreddit = client.subreddit(sub)
+                listing = self.cfg.listing
+                if listing == "hot":
+                    posts = subreddit.hot(limit=limit)
+                elif listing == "new":
+                    posts = subreddit.new(limit=limit)
+                else:
+                    posts = subreddit.top(time_filter=self.cfg.time_filter, limit=limit)
+                posts = list(posts)
+            except Exception as exc:  # noqa: BLE001 — one bad sub must not sink the rest
+                logger.warning(f"[reddit] r/{sub} failed: {exc}")
+                failures += 1
+                continue
+
+            kept = 0
+            for post in posts:
+                if getattr(post, "score", 0) < min_score:
+                    continue
+                kept += 1
+                yield RawItemDraft(
+                    source=self.source,
+                    source_key=f"reddit:r/{sub}",
+                    external_id=f"reddit:t3_{post.id}",
+                    url=f"https://www.reddit.com{post.permalink}",
+                    title=f"[r/{sub}] {post.title}",
+                    body=truncate(post.selftext or ""),
+                    author=str(post.author) if post.author else None,
+                    created_at=datetime.fromtimestamp(post.created_utc, tz=timezone.utc),
+                    raw={"subreddit": sub, "score": post.score, "num_comments": post.num_comments},
+                )
+            logger.info(f"[reddit] r/{sub}: {kept} post(s).")
+
+        # Every subreddit failing is a real outage, not a quiet day — raise so the orchestrator
+        # records it instead of logging a clean run that ingested nothing.
+        if failures and failures == len(self.cfg.subreddits):
+            raise RuntimeError(f"all {failures} subreddit(s) failed via the API")
+
+    def _fetch_rss(self) -> Iterable[RawItemDraft]:
+        limit = self.settings.max_items_per_source
+        rate_limited = 0
         for i, sub in enumerate(self.cfg.subreddits):
             if i > 0:
                 time.sleep(_FETCH_DELAY_SECONDS)
             parsed = _fetch_feed(self._feed_url(sub), f"r/{sub}")
             if parsed is None:
+                rate_limited += 1
                 continue
             if not parsed.entries:
                 logger.warning(f"[reddit] r/{sub} returned no entries.")
@@ -111,6 +191,7 @@ class RedditSource(Source):
                     body = getattr(entry, "summary", "")
                 yield RawItemDraft(
                     source=self.source,
+                    source_key=f"reddit:r/{sub}",
                     external_id=f"reddit:{ext_id}",
                     url=link,
                     title=f"[r/{sub}] {getattr(entry, 'title', 'untitled')}",
@@ -122,3 +203,6 @@ class RedditSource(Source):
                     ),
                     raw={"subreddit": sub},
                 )
+
+        if rate_limited and rate_limited == len(self.cfg.subreddits):
+            raise RuntimeError(f"all {rate_limited} subreddit(s) rate-limited on the public RSS path")

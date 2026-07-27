@@ -60,6 +60,7 @@ export interface DemandEvidence {
 
 export interface DemandSignal {
   id: number;
+  kind: string;
   question: string;
   summary: string;
   opportunity: string;

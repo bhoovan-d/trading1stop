@@ -31,6 +31,9 @@ _ENDPOINTS = {
     "greenhouse": "https://boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true",
     "lever": "https://api.lever.co/v0/postings/{token}?mode=json",
     "ashby": "https://api.ashbyhq.com/posting-api/job-board/{token}?includeCompensation=true",
+    # Zoho Recruit powers several Indian firms' career sites. The embedded widget calls this public
+    # endpoint; ``{token}`` is the zohorecruit.in subdomain (e.g. "quadeye").
+    "zoho": "https://{token}.zohorecruit.in/recruit/v2/public/Job_Openings?pagename=Careers",
 }
 
 
@@ -51,6 +54,16 @@ def _parse_time(value) -> datetime | None:
         return isoparse(str(value))
     except (TypeError, ValueError, OSError):
         return None
+
+
+def _parse_zoho_date(value) -> datetime | None:
+    """Zoho Recruit emits MM/DD/YYYY, which ``isoparse`` reads as an ambiguous/incorrect date."""
+    if not value:
+        return None
+    try:
+        return datetime.strptime(str(value), "%m/%d/%Y").replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return _parse_time(value)
 
 
 def _compose_body(description: str, meta: dict[str, str]) -> str:
@@ -86,7 +99,13 @@ class CareersSource(Source):
                 logger.warning(f"[careers] {board.firm} ({ats}) fetch failed: {exc}")
                 continue
 
-            parser = getattr(self, f"_parse_{ats}")
+            # Guarded: an ATS listed in _ENDPOINTS without a matching parser would otherwise raise
+            # AttributeError out here (outside the try) and kill the whole generator — taking every
+            # remaining firm down with it.
+            parser = getattr(self, f"_parse_{ats}", None)
+            if parser is None:
+                logger.warning(f"[careers] {board.firm}: no parser for ATS '{ats}' — skipping.")
+                continue
             yield from parser(board, payload, limit)
 
     # --- per-ATS parsers ---------------------------------------------------------------------
@@ -155,6 +174,39 @@ class CareersSource(Source):
                 description=description,
                 meta=meta,
                 created_at=_parse_time(job.get("publishedAt")),
+            )
+
+    def _parse_zoho(self, board, payload, limit) -> Iterable[RawItemDraft]:
+        for job in (payload.get("data") or [])[:limit]:
+            job_id = str(job.get("id") or "")
+            if not job_id:
+                continue
+            # Job_Location is a list of dicts on some tenants and absent on others; City/State are
+            # the reliable scalars.
+            locations = job.get("Job_Location")
+            if isinstance(locations, list):
+                location = ", ".join(
+                    str(loc.get("name") or loc) if isinstance(loc, dict) else str(loc)
+                    for loc in locations
+                )
+            else:
+                location = ", ".join(
+                    p for p in (job.get("City"), job.get("State"), job.get("Country")) if p
+                )
+            meta = {
+                "Location": location,
+                "Type": job.get("Job_Type") or "",
+                "Industry": job.get("Industry") or "",
+            }
+            yield self._draft(
+                board,
+                job_id=job_id,
+                title=job.get("Posting_Title") or job.get("Job_Opening_Name") or "untitled",
+                # The public payload puts the canonical job URL under a "$"-prefixed key.
+                url=str(job.get("$url") or ""),
+                description=_clean_html(job.get("Job_Description") or ""),
+                meta=meta,
+                created_at=_parse_zoho_date(job.get("Date_Opened")),
             )
 
     # --- shared draft builder ----------------------------------------------------------------

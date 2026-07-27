@@ -577,3 +577,65 @@ def test_demand_signal_parser_recovers_truncated_json(temp_db):
     out = _parse(truncated, posts)
     assert len(out) == 1  # the complete signal is recovered
     assert out[0]["question"] == "Where can I get cheap data?"
+
+
+def test_jobs_bypass_the_freshness_window(temp_db):
+    """A role doesn't stop being open because it was posted months ago — /jobs must show every
+    posting, while non-job items still obey the freshness window."""
+    from datetime import datetime, timedelta
+    from alpha_engine.api.routes import _apply_filters
+
+    now = datetime.utcnow()
+    with db.session_scope() as s:
+        repository.save_raw(s, [
+            RawItemDraft(source="careers", external_id="oldjob", url="u", title="old role", body="b"),
+            RawItemDraft(source="rss", external_id="oldnews", url="u", title="old news", body="b"),
+        ])
+    with db.session_scope() as s:
+        _insight_published(s, "oldjob", now - timedelta(days=200), item_type="hiring")
+        _insight_published(s, "oldnews", now - timedelta(days=200), item_type="tooling")
+    with db.session_scope() as s:
+        base = select(Insight, RawItem).join(RawItem, Insight.raw_item_id == RawItem.id)
+        rows = s.exec(_apply_filters(base, **_feed_filters(max_age_days=30))).all()
+        assert [r.title for _, r in rows] == ["old role"]  # the stale article is hidden, the job isn't
+
+
+def test_unknown_ats_and_missing_parser_do_not_kill_the_run(temp_db, monkeypatch):
+    """A configured ATS with no matching parser must be skipped, not raise AttributeError out of
+    the generator and take every remaining firm down with it."""
+    from alpha_engine.config import CareerBoard, CareersSources, get_settings
+    from alpha_engine.ingestion import careers as careers_mod
+
+    monkeypatch.setitem(careers_mod._ENDPOINTS, "ghostats", "https://example.invalid/{token}")
+    monkeypatch.setattr(careers_mod.httpx, "get", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("net")))
+    cfg = CareersSources(enabled=True, firms=[
+        CareerBoard(firm="Ghost", ats="ghostats", token="x"),
+        CareerBoard(firm="Nope", ats="not-a-real-ats", token="y"),
+    ])
+    # Must complete without raising.
+    assert list(careers_mod.CareersSource(get_settings(), cfg).fetch()) == []
+
+
+def test_zoho_parser_maps_dollar_url_and_us_date(temp_db):
+    """Zoho puts the job URL under a '$'-prefixed key and dates as MM/DD/YYYY — isoparse can't
+    read that format, so a dedicated parser is required."""
+    from alpha_engine.config import CareerBoard, CareersSources, get_settings
+    from alpha_engine.ingestion.careers import CareersSource
+
+    payload = {"data": [{
+        "id": "199893000002318440",
+        "Posting_Title": "Quantitative Developer",
+        "Job_Description": "<p>Build <b>low-latency</b> systems.</p>",
+        "City": "Gurugram", "State": "Haryana", "Country": "India",
+        "Job_Type": "Full time", "Industry": "Quant Firms/HFT",
+        "Date_Opened": "06/29/2026",
+        "$url": "https://career.quadeye.com/jobs/Careers/199893000002318440/Quant-Dev",
+    }]}
+    board = CareerBoard(firm="Quadeye", ats="zoho", token="quadeye")
+    src = CareersSource(get_settings(), CareersSources(enabled=True, firms=[board]))
+    draft = list(src._parse_zoho(board, payload, 10))[0]
+    assert draft.url.endswith("Quant-Dev")                 # $url resolved
+    assert draft.created_at.year == 2026 and draft.created_at.month == 6
+    assert draft.created_at.day == 29                      # MM/DD/YYYY, not DD/MM
+    assert "low-latency" in draft.body and "<b>" not in draft.body
+    assert "Gurugram" in draft.body

@@ -74,6 +74,16 @@ def demand_signals_cmd(
     typer.echo(f"Stored {count} demand signal(s).")
 
 
+@app.command("firm-signals")
+def firm_signals_cmd(
+    days: int = typer.Option(60, help="How far back to read quant-firm postings."),
+) -> None:
+    """Find cross-firm hiring/tech trends for the Quant Firms tab."""
+    from .intelligence.firms import detect_firm_signals
+
+    typer.echo(f"Stored {detect_firm_signals(days=days)} firm signal(s).")
+
+
 @app.command("requeue-ventures")
 def requeue_ventures_cmd() -> None:
     """Requeue funding/startup items so the next run re-scores them under the venture rules.

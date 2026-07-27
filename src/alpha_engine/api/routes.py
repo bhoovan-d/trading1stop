@@ -105,10 +105,11 @@ def _apply_filters(
     if date_to is not None:
         stmt = stmt.where(_published() <= datetime.combine(date_to, time.max))
     # Default freshness window, applied only when the caller asked for no explicit range — so
-    # deep-linked/archive queries can still reach older material.
+    # deep-linked/archive queries can still reach older material. Job postings are exempt: /jobs is
+    # a listing of what's open, and a role doesn't stop being open because it was posted 4 months ago.
     if max_age_days is not None and date_from is None and date_to is None:
         cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=max_age_days)
-        stmt = stmt.where(_published() >= cutoff)
+        stmt = stmt.where(or_(Insight.item_type == "hiring", _published() >= cutoff))
     if q:
         like = f"%{q}%"
         stmt = stmt.where(
@@ -228,12 +229,16 @@ def get_source_health(session: Session = Depends(get_session)) -> list[SourceHea
 
 
 @router.get("/demand-signals", response_model=list[DemandSignalOut])
-def list_demand_signals(session: Session = Depends(get_session)) -> list[DemandSignalOut]:
-    """What traders keep asking for — recurring needs distilled across community posts."""
+def list_demand_signals(
+    session: Session = Depends(get_session),
+    kind: str = Query("demand", pattern="^(demand|firm)$"),
+) -> list[DemandSignalOut]:
+    """Patterns synthesized across items: `demand` = what traders keep asking for,
+    `firm` = what quant firms are collectively building and hiring for."""
     rows = session.exec(
-        select(DemandSignal).order_by(
-            DemandSignal.mention_count.desc(), DemandSignal.created_at.desc()
-        )
+        select(DemandSignal)
+        .where(DemandSignal.kind == kind)
+        .order_by(DemandSignal.mention_count.desc(), DemandSignal.created_at.desc())
     ).all()
     return [DemandSignalOut.from_row(r) for r in rows]
 

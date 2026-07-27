@@ -100,6 +100,7 @@ class DemandEvidence(BaseModel):
 
 class DemandSignalOut(BaseModel):
     id: int
+    kind: str
     question: str
     summary: str
     opportunity: str
@@ -116,6 +117,7 @@ class DemandSignalOut(BaseModel):
             raw = []
         return cls(
             id=row.id,
+            kind=getattr(row, "kind", "demand") or "demand",
             question=row.question,
             summary=row.summary,
             opportunity=row.opportunity,

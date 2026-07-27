@@ -93,6 +93,15 @@ def _salvage_truncated(text: str) -> str | None:
     return None
 
 
+def parse_signals(text: str, by_id: dict[int, RawItem]) -> list[dict]:
+    """Shared parser for both signal kinds (community demand and quant-firm trends).
+
+    Both prompts return the same envelope, so both get the same guarantees: canonical fields,
+    resolved evidence, and the >=2-items rule that keeps a "pattern" from resting on one item.
+    """
+    return _parse(text, by_id)
+
+
 def _parse(text: str, by_id: dict[int, RawItem]) -> list[dict]:
     """Parse the model's signal list, keeping only entries with >=2 resolvable posts."""
     cleaned = _strip_fences(text)
@@ -186,10 +195,11 @@ def detect_demand_signals(
         return 0
 
     with session_scope() as session:
-        for old in session.exec(select(DemandSignal)).all():
+        for old in session.exec(select(DemandSignal).where(DemandSignal.kind == "demand")).all():
             session.delete(old)
         for sig in signals:
             session.add(DemandSignal(
+                kind="demand",
                 question=sig["question"],
                 summary=sig["summary"],
                 opportunity=sig["opportunity"],

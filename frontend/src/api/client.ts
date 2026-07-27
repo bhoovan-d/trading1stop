@@ -66,9 +66,9 @@ export function useNewsletter(date?: string) {
   });
 }
 
-export function useDemandSignals() {
+export function useDemandSignals(kind: "demand" | "firm" = "demand") {
   return useQuery({
-    queryKey: ["demand-signals"],
-    queryFn: () => getJSON<DemandSignal[]>("/api/demand-signals"),
+    queryKey: ["demand-signals", kind],
+    queryFn: () => getJSON<DemandSignal[]>(`/api/demand-signals?kind=${kind}`),
   });
 }

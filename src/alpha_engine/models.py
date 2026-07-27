@@ -165,18 +165,25 @@ class DailyBrief(SQLModel, table=True):
 
 
 class DemandSignal(SQLModel, table=True):
-    """A recurring question/problem traders are asking, distilled from many community posts.
+    """A pattern synthesized ACROSS many raw items, rather than one row per item.
 
-    Unlike an :class:`Insight` (one row per source item), a demand signal is synthesized ACROSS
-    items: "12 traders asked how to automate NIFTY options this week" is the unit of value, since
-    repeated demand with no good answer is a product opportunity. ``evidence_json`` holds the
-    threads behind it — ``[{"title": ..., "url": ...}, …]`` — so every claim stays checkable.
+    Two kinds share this shape, because the shape is genuinely the same — a headline, what's behind
+    it, what it means, and the evidence:
+
+    * ``kind="demand"`` — a recurring question traders keep asking ("12 traders asked how to
+      automate NIFTY options"). ``question`` is the ask; ``opportunity`` is the product gap.
+    * ``kind="firm"`` — a hiring/tech trend across quant firms ("Indian quant firms are hiring ML
+      engineers"). ``question`` holds the headline; ``opportunity`` holds what it implies.
+
+    ``evidence_json`` holds the source items — ``[{"title": ..., "url": ...}, …]`` — so every claim
+    stays checkable, and ``mention_count`` is the claim: it's how many items back the pattern.
     """
 
     id: int | None = Field(default=None, primary_key=True)
-    question: str                              # the recurring ask, in traders' own words
+    kind: str = Field(default="demand", index=True)   # "demand" | "firm"
+    question: str                              # the recurring ask / the firm-trend headline
     summary: str                               # what people are actually struggling with
-    opportunity: str                           # why this is a gap worth filling
+    opportunity: str                           # the product gap / what the trend implies
     mention_count: int = Field(default=1, index=True)
     region: str = Field(default="Global", index=True)   # stores Region.value
     evidence_json: str = "[]"

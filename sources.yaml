@@ -270,4 +270,10 @@ careers:
     - { firm: "Graviton Research Capital", ats: greenhouse, token: gravitonresearchcapital }
     - { firm: "AlphaGrep Securities", ats: greenhouse, token: alphagrepsecurities }
     - { firm: "WorldQuant", ats: greenhouse, token: worldquant }
-    # NOTE: Quadeye removed — no public Greenhouse board (404). Re-add if it exposes an ATS feed.
+    - { firm: "NK Securities Research", ats: greenhouse, token: nksecuritiesresearch }
+    # Quadeye has no Greenhouse board — its careers site embeds Zoho Recruit, whose public
+    # Job_Openings API we read directly. `token` is the zohorecruit.in subdomain.
+    - { firm: "Quadeye", ats: zoho, token: quadeye }
+    # NOTE: Dolat Capital lists no open roles, and Estee Advisors has no ATS (static HTML, email
+    # apply) — a scrape would yield titles with no description for the LLM to score. Neither added.
+    # LinkedIn / AngelList are not viable sources: both require auth and disallow scraping.

@@ -1,8 +1,9 @@
 import { useSearchParams } from "react-router-dom";
-import { useInsights, useMeta } from "../api/client";
+import { useDemandSignals, useInsights, useMeta } from "../api/client";
 import { FilterBar, type FilterValues } from "../components/FilterBar";
 import { InsightCard } from "../components/InsightCard";
 import { Pagination } from "../components/Pagination";
+import { SignalCard } from "../components/SignalCard";
 
 const PAGE_SIZE = 20;
 // Newest-first by default: the brief should read as current. "Top" stays one click away.
@@ -154,10 +155,12 @@ export function FeedPage({
             Quant Firms
           </h1>
           <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted">
-            What leading quant &amp; HFT firms — Jane Street, Jump, DRW, IMC, Tower Research and peers —
-            are building and hiring for. Scored job postings and firm engineering signals reveal where
-            the institutional edge is heading, so you can watch it from the outside.
+            What leading quant &amp; HFT firms — Jane Street, Jump, DRW, Graviton, AlphaGrep, Quadeye
+            and peers — are collectively building and hiring for. Trends across many postings, not
+            individual roles (those live in Jobs), so you can read where the institutional edge is
+            heading from the outside.
           </p>
+          <FirmSignals />
         </div>
       ) : isCommunity ? (
         <div className="mb-5 mt-6">
@@ -244,6 +247,24 @@ export function FeedPage({
         )}
       </div>
     </div>
+  );
+}
+
+/** Cross-firm trends shown above the Quant Firms feed; silent when none exist yet. */
+function FirmSignals() {
+  const { data } = useDemandSignals("firm");
+  if (!data || data.length === 0) return null;
+  return (
+    <section className="mt-5">
+      <h2 className="mb-2.5 font-mono text-[11px] uppercase tracking-wide text-faint">
+        What these firms are building
+      </h2>
+      <div className="space-y-3">
+        {data.map((s, i) => (
+          <SignalCard key={s.id} signal={s} index={i} />
+        ))}
+      </div>
+    </section>
   );
 }
 
