@@ -123,6 +123,8 @@ _FACTORIES: dict[str, Callable[[Settings], LLMProvider | None]] = {
     "gemini": lambda s: _build_openai_compat("gemini", s.gemini_api_key, s.gemini_base_url, s.gemini_model),
     "sambanova": lambda s: _build_openai_compat("sambanova", s.sambanova_api_key, s.sambanova_base_url, s.sambanova_model),
     "openrouter": lambda s: _build_openai_compat("openrouter", s.openrouter_api_key, s.openrouter_base_url, s.openrouter_model),
+    "mistral": lambda s: _build_openai_compat("mistral", s.mistral_api_key, s.mistral_base_url, s.mistral_model),
+    "nvidia": lambda s: _build_openai_compat("nvidia", s.nvidia_api_key, s.nvidia_base_url, s.nvidia_model),
     "anthropic": _build_anthropic,
 }
 

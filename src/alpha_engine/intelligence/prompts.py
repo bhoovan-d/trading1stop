@@ -99,6 +99,18 @@ OVERRIDES the "must be actionable" rubric for these three item types only. It do
 consumer fintech with no trading angle (payments, lending, neobanks, remittances — e.g. a lending \
 startup's raise) — those stay 1-4 per CAPITAL MARKETS FOCUS above.
 
+TIMEFRAME — if the item describes a tradeable strategy, setup, signal, or execution technique, how \
+long is the position held? One of: "1-15 min" (scalping and fast intraday — the bread and butter of \
+active retail day traders), "15-60 min", "1 hour - 1 day", "Multi-day". Leave null when the item has \
+no specific holding period (a library update, a job posting, funding news, general infrastructure). \
+Be precise: an options-scalping or order-flow setup on 1/3/5/15-minute candles is "1-15 min", not \
+"Multi-day". A strategy explicitly built on 1m/3m/5m/15m charts is ALWAYS "1-15 min".
+
+MARKET_INDEX — if the item specifically centres on an Indian index, which one: "Nifty 50", \
+"Bank Nifty", "Fin Nifty", or "Sensex". Null unless the item is genuinely about that index (a \
+passing mention is not enough). Note Bank Nifty and Fin Nifty are distinct from Nifty 50 — use the \
+one actually discussed.
+
 REGION — is this about India or global?
 - "India": Indian markets (NSE/BSE, Nifty, Bank Nifty, Sensex), Indian brokers/platforms \
   (Zerodha, Upstox, Dhan, Angel One, Groww, Kite, Tradetron), SEBI, Indian fintechs, content \
@@ -135,6 +147,8 @@ these keys:
   "item_type": "<one of exactly: launch | funding | early_stage | hiring | research | discussion | tooling>",
   "region": "<one of exactly: India | Global>",
   "workflow_stage": "<one of exactly: Research | Signal Generation | Execution | Risk | Monitoring, or null unless item_type is launch/funding/early_stage>",
+  "timeframe": "<one of exactly: 1-15 min | 15-60 min | 1 hour - 1 day | Multi-day, or null if the item has no holding period>",
+  "market_index": "<one of exactly: Nifty 50 | Bank Nifty | Fin Nifty | Sensex, or null>",
   "technical_summary": "<2-3 plain-English sentences a trader would understand, jargon explained>",
   "trader_impact": "<one concrete 'you can now…' sentence a non-expert understands>"
 }"""

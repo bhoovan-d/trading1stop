@@ -64,6 +64,15 @@ class Settings(BaseSettings):
     # apply, so it stays signal, not noise.
     site_insight_target: int | None = None
     community_insight_target: int | None = None
+    # Freshness window: the API hides insights whose PUBLISH date is older than this many days
+    # (falling back to synthesis time when a source gives no publish date). This — not a top-N cap —
+    # is what bounds how much the site shows: a daily brief should read as current, and stale items
+    # are what made the feed feel repetitive. Set to None to show the full archive.
+    max_insight_age_days: int | None = 90
+    # Diversity cap: how many insights ONE resource (a single repo or feed) may contribute. Without
+    # it a busy project fills the page with near-identical cards — which reads as "repeated stuff"
+    # even though every card is distinct. Adapter-wide sources and job posts are exempt.
+    per_source_keep: int | None = 10
     # Guaranteed per-tab minimums so the specialized tabs never go empty when a top-N cap is in
     # effect. With the caps set to None (unlimited) above these are redundant but harmless; they
     # still act as floors if a numeric cap is ever restored.
@@ -95,6 +104,14 @@ class Settings(BaseSettings):
     openrouter_api_key: str | None = None
     openrouter_model: str = "meta-llama/llama-3.3-70b-instruct:free"
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
+
+    mistral_api_key: str | None = None
+    mistral_model: str = "mistral-small-latest"
+    mistral_base_url: str = "https://api.mistral.ai/v1"
+
+    nvidia_api_key: str | None = None
+    nvidia_model: str = "meta/llama-3.3-70b-instruct"
+    nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
 
     # GitHub
     github_token: str | None = None

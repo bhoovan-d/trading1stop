@@ -5,7 +5,9 @@ import { InsightCard } from "../components/InsightCard";
 import { Pagination } from "../components/Pagination";
 
 const PAGE_SIZE = 20;
-const FILTER_KEYS = ["category", "approach", "item_type", "min_score", "source", "date_from", "date_to", "q"] as const;
+// Newest-first by default: the brief should read as current. "Top" stays one click away.
+const DEFAULT_SORT = "date";
+const FILTER_KEYS = ["category", "approach", "item_type", "timeframe", "market_index", "min_score", "source", "date_from", "date_to", "q"] as const;
 
 export function FeedPage({
   stream,
@@ -32,12 +34,14 @@ export function FeedPage({
     category: params.get("category") ?? "",
     approach: params.get("approach") ?? "",
     item_type: params.get("item_type") ?? "",
+    timeframe: params.get("timeframe") ?? "",
+    market_index: params.get("market_index") ?? "",
     min_score: params.get("min_score") ?? "",
     source: params.get("source") ?? "",
     date_from: params.get("date_from") ?? "",
     date_to: params.get("date_to") ?? "",
     q: params.get("q") ?? "",
-    sort: params.get("sort") ?? "score",
+    sort: params.get("sort") ?? DEFAULT_SORT,
   };
   const page = Math.max(1, Number(params.get("page") ?? "1"));
   const active = FILTER_KEYS.some((k) => values[k] !== "");
@@ -74,7 +78,7 @@ export function FeedPage({
 
   function clearAll() {
     const next = new URLSearchParams();
-    if (values.sort && values.sort !== "score") next.set("sort", values.sort);
+    if (values.sort && values.sort !== DEFAULT_SORT) next.set("sort", values.sort);
     setParams(next, { replace: true });
   }
 
@@ -84,6 +88,8 @@ export function FeedPage({
     item_type: lockedItemType ?? (values.item_type || undefined),
     exclude_item_type: excludeItemType,
     region: lockedRegion ?? undefined,
+    timeframe: values.timeframe || undefined,
+    market_index: values.market_index || undefined,
     min_score: values.min_score ? Number(values.min_score) : undefined,
     source: values.source || undefined,
     stream,

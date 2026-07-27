@@ -155,3 +155,19 @@ def test_community_source_unknown_item_type_becomes_discussion():
     out = p.extract(community_item)
     assert out is not None
     assert out.item_type == ItemType.DISCUSSION
+
+
+def test_build_provider_mistral_and_nvidia():
+    from alpha_engine.config import Settings
+    from alpha_engine.intelligence.provider import build_provider
+
+    settings = Settings(
+        llm_provider_chain="mistral,nvidia",
+        mistral_api_key="test-mistral-key",
+        nvidia_api_key="test-nvidia-key",
+    )
+    cascade = build_provider(settings)
+    assert len(cascade.providers) == 2
+    assert "mistral:" in cascade.providers[0].label
+    assert "nvidia:" in cascade.providers[1].label
+

@@ -30,6 +30,8 @@ class InsightOut(BaseModel):
     item_type: str = "tooling"
     region: str = "Global"
     workflow_stage: str | None = None
+    timeframe: str | None = None
+    market_index: str | None = None
     technical_summary: str
     trader_impact: str
     model_used: str
@@ -52,6 +54,8 @@ class InsightOut(BaseModel):
             item_type=getattr(insight, "item_type", None) or "tooling",
             region=getattr(insight, "region", None) or "Global",
             workflow_stage=getattr(insight, "workflow_stage", None),
+            timeframe=getattr(insight, "timeframe", None),
+            market_index=getattr(insight, "market_index", None),
             technical_summary=insight.technical_summary,
             trader_impact=insight.trader_impact,
             model_used=insight.model_used,
@@ -77,6 +81,8 @@ class MetaOut(BaseModel):
     approaches: list[str]
     item_types: list[str]
     regions: list[str]
+    timeframes: list[str]
+    market_indexes: list[str]
     sources: list[str]
     score_min: int
     score_max: int

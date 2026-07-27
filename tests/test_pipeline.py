@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+from collections import Counter
 
 import pytest
 
@@ -346,6 +347,139 @@ def test_exclude_item_type_hides_venture_from_query(temp_db):
         base = select(Insight, RawItem).join(RawItem, Insight.raw_item_id == RawItem.id)
         rows = s.exec(_apply_filters(base, **filt)).all()
         assert sorted(i.item_type for i, _ in rows) == ["tooling"]  # funding excluded
+
+
+def _feed_filters(**overrides):
+    """Baseline no-op filter kwargs for `_apply_filters`, overridable per test."""
+    base = dict(category=None, approach=None, item_type=None, exclude_item_type=None,
+                region=None, min_score=None, source=None, stream=None,
+                date_from=None, date_to=None, q=None)
+    base.update(overrides)
+    return base
+
+
+def _insight_published(session, external_id, published, **kw):
+    """Attach an Insight (synthesized NOW) to a RawItem published at `published`."""
+    raw = session.exec(select(RawItem).where(RawItem.external_id == external_id)).one()
+    raw.created_at = published
+    session.add(raw)
+    session.add(Insight(raw_item_id=raw.id, relevance_score=kw.get("score", 8),
+                        category="Technical Analysis", item_type=kw.get("item_type", "tooling"),
+                        region="Global", technical_summary="t", trader_impact="i", model_used="x"))
+
+
+def test_date_filter_uses_publish_date_not_synthesis_time(temp_db):
+    """Regression: an OLD article scored today must NOT pass a 'last 24h' filter.
+
+    The card renders RawItem.created_at (publish date) while the filter used to run on
+    Insight.created_at (synthesis time), so backlog items looked fresh but displayed old dates."""
+    from datetime import datetime, timedelta
+    from alpha_engine.api.routes import _apply_filters
+
+    now = datetime.utcnow()
+    with db.session_scope() as s:
+        repository.save_raw(s, [
+            RawItemDraft(source="rss", external_id="old", url="u", title="two years old", body="b"),
+            RawItemDraft(source="rss", external_id="new", url="u", title="today", body="b"),
+        ])
+    with db.session_scope() as s:
+        _insight_published(s, "old", now - timedelta(days=730))  # published long ago, scored now
+        _insight_published(s, "new", now - timedelta(hours=2))
+    yesterday = (now - timedelta(days=1)).date()
+    with db.session_scope() as s:
+        base = select(Insight, RawItem).join(RawItem, Insight.raw_item_id == RawItem.id)
+        rows = s.exec(_apply_filters(base, **_feed_filters(date_from=yesterday))).all()
+        assert [r.title for _, r in rows] == ["today"]  # the 2-year-old item is excluded
+
+
+def test_max_age_window_hides_stale_items(temp_db):
+    """The default freshness window drops old items, and an explicit range opts out of it."""
+    from datetime import datetime, timedelta
+    from alpha_engine.api.routes import _apply_filters
+
+    now = datetime.utcnow()
+    with db.session_scope() as s:
+        repository.save_raw(s, [
+            RawItemDraft(source="rss", external_id="stale", url="u", title="stale", body="b"),
+            RawItemDraft(source="rss", external_id="fresh", url="u", title="fresh", body="b"),
+        ])
+    with db.session_scope() as s:
+        _insight_published(s, "stale", now - timedelta(days=90))
+        _insight_published(s, "fresh", now - timedelta(days=2))
+    with db.session_scope() as s:
+        base = select(Insight, RawItem).join(RawItem, Insight.raw_item_id == RawItem.id)
+        rows = s.exec(_apply_filters(base, **_feed_filters(max_age_days=30))).all()
+        assert [r.title for _, r in rows] == ["fresh"]
+        # An explicit date_from disables the window so the archive stays reachable.
+        old = (now - timedelta(days=365)).date()
+        rows = s.exec(_apply_filters(base, **_feed_filters(max_age_days=30, date_from=old))).all()
+        assert sorted(r.title for _, r in rows) == ["fresh", "stale"]
+
+
+def test_timeframe_and_index_filters(temp_db):
+    """The depth axes filter independently: '1-15 min' isolates fast intraday setups, and the
+    index filter isolates Bank Nifty material."""
+    from alpha_engine.api.routes import _apply_filters
+
+    rows = [
+        ("scalp", "1-15 min", "Bank Nifty"),
+        ("swing", "Multi-day", "Nifty 50"),
+        ("tool", None, None),
+    ]
+    with db.session_scope() as s:
+        repository.save_raw(s, [
+            RawItemDraft(source="rss", external_id=e, url="u", title=e, body="b")
+            for e, _, _ in rows
+        ])
+    with db.session_scope() as s:
+        by = {r.external_id: r for r in s.exec(select(RawItem)).all()}
+        for e, tf, idx in rows:
+            s.add(Insight(raw_item_id=by[e].id, relevance_score=8, category="Intraday Trading",
+                          item_type="tooling", region="India", timeframe=tf, market_index=idx,
+                          technical_summary="t", trader_impact="i", model_used="x"))
+    base = select(Insight, RawItem).join(RawItem, Insight.raw_item_id == RawItem.id)
+    with db.session_scope() as s:
+        fast = s.exec(_apply_filters(base, **_feed_filters(timeframe="1-15 min"))).all()
+        assert [r.title for _, r in fast] == ["scalp"]
+        bn = s.exec(_apply_filters(base, **_feed_filters(market_index="Bank Nifty"))).all()
+        assert [r.title for _, r in bn] == ["scalp"]
+        # Items with no holding period are simply absent from a timeframe-filtered view.
+        multi = s.exec(_apply_filters(base, **_feed_filters(timeframe="Multi-day"))).all()
+        assert [r.title for _, r in multi] == ["swing"]
+
+
+def test_per_source_cap_limits_one_repo_but_spares_adapter_wide_sources(temp_db):
+    """One busy repo can't fill the feed — but adapter-level sources (all job boards share
+    source_key 'adapter:careers') and hiring items are exempt, so /jobs isn't gutted."""
+    # Titles must be genuinely different — dedup_signature (which strips digits) would otherwise
+    # collapse "change 1/2/3" into one signature before the per-source cap is ever consulted.
+    topics = ["orderbook latency", "margin repayment", "websocket reconnect", "fee schedule",
+              "position netting", "candle aggregation", "risk limits", "symbol mapping"]
+    roles = ["Quant Researcher", "Systems Engineer", "Data Scientist", "Trader Associate",
+             "Platform Developer", "Risk Analyst", "Network Engineer", "Research Intern"]
+    drafts = [
+        RawItemDraft(source="github", source_key="github:acme/bot", external_id=f"c{n}",
+                     url="u", title=f"[acme/bot] {t}", body="b")
+        for n, t in enumerate(topics)
+    ] + [
+        RawItemDraft(source="careers", source_key="adapter:careers", external_id=f"j{n}",
+                     url="u", title=f"[Firm {n}] {r}", body="b")
+        for n, r in enumerate(roles)
+    ]
+    with db.session_scope() as s:
+        repository.save_raw(s, drafts)
+    with db.session_scope() as s:
+        for r in s.exec(select(RawItem)).all():
+            s.add(Insight(raw_item_id=r.id, relevance_score=9, category="Technical Analysis",
+                          item_type="hiring" if r.source == "careers" else "tooling",
+                          region="Global", technical_summary="t", trader_impact="i", model_used="x"))
+    with db.session_scope() as s:
+        repository.prune_insights(s, alpha_keep=None, community_keep=None, per_source_keep=3)
+    with db.session_scope() as s:
+        rows = s.exec(select(Insight, RawItem).join(RawItem, Insight.raw_item_id == RawItem.id)).all()
+        by_source = Counter(r.source for _, r in rows)
+        assert by_source["github"] == 3   # capped: one repo contributes at most 3
+        assert by_source["careers"] == 8  # untouched: adapter-wide key + hiring are exempt
 
 
 def test_prune_quota_keeps_facet_items_below_the_cap(temp_db):

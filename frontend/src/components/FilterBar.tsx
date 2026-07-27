@@ -7,6 +7,8 @@ export interface FilterValues {
   category: string;
   approach: string;
   item_type: string;
+  timeframe: string;
+  market_index: string;
   min_score: string;
   source: string;
   date_from: string;
@@ -167,11 +169,17 @@ export function FilterBar({ values, meta, active, onChange, onApplyMany, onClear
   const categories = meta?.categories ?? [];
   const approaches = meta?.approaches ?? [];
   const itemTypes = meta?.item_types ?? [];
+  // Holding period ("1-15 min" … "Multi-day") — distinct from the date presets below, which are
+  // about when an item was published.
+  const holdingPeriods = meta?.timeframes ?? [];
+  const marketIndexes = meta?.market_indexes ?? [];
   const sources = meta?.sources ?? [];
   const activeCount = [
     values.min_score,
     values.approach,
     values.item_type,
+    values.timeframe,
+    values.market_index,
     values.source,
     values.date_from,
   ].filter(Boolean).length;
@@ -263,6 +271,38 @@ export function FilterBar({ values, meta, active, onChange, onApplyMany, onClear
                         label={itemTypeLabel(t)}
                         selected={values.item_type === t}
                         onClick={() => onChange("item_type", values.item_type === t ? "" : t)}
+                      />
+                    ))}
+                  </div>
+                </Field>
+              )}
+
+              {holdingPeriods.length > 0 && (
+                <Field label="Holding period">
+                  <div className="flex flex-wrap gap-1.5">
+                    <Pill label="Any" selected={values.timeframe === ""} onClick={() => onChange("timeframe", "")} />
+                    {holdingPeriods.map((t) => (
+                      <Pill
+                        key={t}
+                        label={t}
+                        selected={values.timeframe === t}
+                        onClick={() => onChange("timeframe", values.timeframe === t ? "" : t)}
+                      />
+                    ))}
+                  </div>
+                </Field>
+              )}
+
+              {marketIndexes.length > 0 && (
+                <Field label="Index">
+                  <div className="flex flex-wrap gap-1.5">
+                    <Pill label="Any" selected={values.market_index === ""} onClick={() => onChange("market_index", "")} />
+                    {marketIndexes.map((i) => (
+                      <Pill
+                        key={i}
+                        label={i}
+                        selected={values.market_index === i}
+                        onClick={() => onChange("market_index", values.market_index === i ? "" : i)}
                       />
                     ))}
                   </div>
