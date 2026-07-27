@@ -90,13 +90,17 @@ rss:
     - name: "Economic Times Startups"
       url: "https://economictimes.indiatimes.com/tech/startups/rssfeeds/78570530.cms"
       screen: markets
-    # Indian market coverage — feeds the India tab and the index-level view.
+    # Indian market coverage — feeds the India tab and the index-level (Nifty/Bank Nifty) view.
+    # Screened on `markets`, NOT `ai`: these are market-news feeds, and an index story ("Nifty hits
+    # record high") carries no AI keyword, so an `ai` screen silently admitted nothing at all.
+    # `markets` includes nifty/sensex/nse/bse; max_items_per_source caps each at 15/run, and the
+    # relevance threshold still drops directionless price commentary.
     - name: "Moneycontrol Markets"
       url: "https://www.moneycontrol.com/rss/marketreports.xml"
-      screen: ai
+      screen: markets
     - name: "ET Markets Stocks"
       url: "https://economictimes.indiatimes.com/markets/stocks/rssfeeds/2146842.cms"
-      screen: ai
+      screen: markets
     # New product discovery — screened hard, since most of Product Hunt is off-topic.
     - name: "Product Hunt"
       url: "https://www.producthunt.com/feed"
