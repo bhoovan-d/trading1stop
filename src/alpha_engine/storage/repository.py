@@ -312,9 +312,16 @@ def prune_insights(
     community_keep: int | None,
     *,
     quotas: dict[str, int] | None = None,
+    per_source_keep: int | None = None,
 ) -> int:
     """Collapse near-duplicate 'same app' updates, then keep the top-N per stream — plus small
     per-facet minimums so the specialized tabs never go empty.
+
+    ``per_source_keep`` additionally caps how many insights any ONE resource (a single GitHub repo,
+    a single RSS feed) may contribute, so one busy project can't fill the page. It deliberately
+    applies only to resource-level ``source_key``s: keys of the form ``adapter:<name>`` cover a whole
+    adapter at once (every job board is ``adapter:careers``), so capping those would gut a tab.
+    ``hiring`` is exempt for the same reason — /jobs is meant to list every open role.
 
     Walks each stream best-first (score, then recency) and keeps the first insight of each
     :func:`dedup_signature` up to the stream's cap, so repeated app updates (e.g. several
@@ -338,16 +345,18 @@ def prune_insights(
 
         rows = session.exec(
             _stream(
-                select(Insight.id, RawItem.title, Insight.item_type, Insight.region)
+                select(Insight.id, RawItem.title, Insight.item_type, Insight.region,
+                       RawItem.source_key)
                 .join(RawItem, Insight.raw_item_id == RawItem.id)
             ).order_by(Insight.relevance_score.desc(), Insight.created_at.desc())
         ).all()
 
         keep_ids: set[int] = set()
         seen_sigs: set[str] = set()
+        source_counts: dict[str, int] = {}
         overall = 0
         facet_counts = {f: 0 for f in stream_quotas}
-        for iid, title, item_type, region in rows:
+        for iid, title, item_type, region, source_key in rows:
             sig = dedup_signature(title)
             if sig in seen_sigs:
                 continue  # a lower-scored duplicate of an app/subject we already kept
@@ -358,14 +367,27 @@ def prune_insights(
             )
             if not (need_overall or need_facet):
                 continue
+            # Diversity gate: one repo/feed may only contribute so much. Adapter-level keys and
+            # hiring are exempt (see docstring); a facet that still needs items wins over the cap.
+            key = source_key or ""
+            capped = (
+                per_source_keep is not None
+                and item_type != "hiring"
+                and key
+                and not key.startswith("adapter:")
+            )
+            if capped and not need_facet and source_counts.get(key, 0) >= per_source_keep:
+                continue
             seen_sigs.add(sig)
             keep_ids.add(iid)
             overall += 1
+            if capped:
+                source_counts[key] = source_counts.get(key, 0) + 1
             for f in stream_quotas:
                 if _facet_match(f, item_type, region):
                     facet_counts[f] += 1
 
-        to_delete = {iid for iid, _, _, _ in rows} - keep_ids
+        to_delete = {row[0] for row in rows} - keep_ids
         if to_delete:
             session.execute(sa_delete(Insight).where(Insight.id.in_(to_delete)))
             deleted += len(to_delete)

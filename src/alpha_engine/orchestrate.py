@@ -63,6 +63,7 @@ def run_pipeline(
                 "india": settings.retain_india,
                 "launches": settings.retain_launches,
             },
+            per_source_keep=settings.per_source_keep,
         )
     if pruned:
         logger.info(f"[prune] removed {pruned} insight(s) beyond the top-N window.")

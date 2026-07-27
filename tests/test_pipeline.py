@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+from collections import Counter
 
 import pytest
 
@@ -413,6 +414,40 @@ def test_max_age_window_hides_stale_items(temp_db):
         old = (now - timedelta(days=365)).date()
         rows = s.exec(_apply_filters(base, **_feed_filters(max_age_days=30, date_from=old))).all()
         assert sorted(r.title for _, r in rows) == ["fresh", "stale"]
+
+
+def test_per_source_cap_limits_one_repo_but_spares_adapter_wide_sources(temp_db):
+    """One busy repo can't fill the feed — but adapter-level sources (all job boards share
+    source_key 'adapter:careers') and hiring items are exempt, so /jobs isn't gutted."""
+    # Titles must be genuinely different — dedup_signature (which strips digits) would otherwise
+    # collapse "change 1/2/3" into one signature before the per-source cap is ever consulted.
+    topics = ["orderbook latency", "margin repayment", "websocket reconnect", "fee schedule",
+              "position netting", "candle aggregation", "risk limits", "symbol mapping"]
+    roles = ["Quant Researcher", "Systems Engineer", "Data Scientist", "Trader Associate",
+             "Platform Developer", "Risk Analyst", "Network Engineer", "Research Intern"]
+    drafts = [
+        RawItemDraft(source="github", source_key="github:acme/bot", external_id=f"c{n}",
+                     url="u", title=f"[acme/bot] {t}", body="b")
+        for n, t in enumerate(topics)
+    ] + [
+        RawItemDraft(source="careers", source_key="adapter:careers", external_id=f"j{n}",
+                     url="u", title=f"[Firm {n}] {r}", body="b")
+        for n, r in enumerate(roles)
+    ]
+    with db.session_scope() as s:
+        repository.save_raw(s, drafts)
+    with db.session_scope() as s:
+        for r in s.exec(select(RawItem)).all():
+            s.add(Insight(raw_item_id=r.id, relevance_score=9, category="Technical Analysis",
+                          item_type="hiring" if r.source == "careers" else "tooling",
+                          region="Global", technical_summary="t", trader_impact="i", model_used="x"))
+    with db.session_scope() as s:
+        repository.prune_insights(s, alpha_keep=None, community_keep=None, per_source_keep=3)
+    with db.session_scope() as s:
+        rows = s.exec(select(Insight, RawItem).join(RawItem, Insight.raw_item_id == RawItem.id)).all()
+        by_source = Counter(r.source for _, r in rows)
+        assert by_source["github"] == 3   # capped: one repo contributes at most 3
+        assert by_source["careers"] == 8  # untouched: adapter-wide key + hiring are exempt
 
 
 def test_prune_quota_keeps_facet_items_below_the_cap(temp_db):

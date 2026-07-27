@@ -6,7 +6,10 @@ github:
   # What to pull from each repo: any of [commits, releases]
   # Curated to a few FLAGSHIP, mainstream-popular trading projects (the source itself is the
   # topic filter here — every commit/release is on-brand). Add more freely.
-  track: [commits, releases]
+  # RELEASES ONLY: individual commits are too granular to be "insights" — one active repo can
+  # produce dozens of near-identical bugfix cards and swamp the feed. A release is the unit a
+  # trader actually cares about. Add `commits` back if you want commit-level signal.
+  track: [releases]
   repos:
     - freqtrade/freqtrade                 # most-popular open-source trading bot
     - QuantConnect/Lean                   # mainstream algo/backtesting engine
