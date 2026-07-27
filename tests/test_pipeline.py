@@ -639,3 +639,83 @@ def test_zoho_parser_maps_dollar_url_and_us_date(temp_db):
     assert draft.created_at.day == 29                      # MM/DD/YYYY, not DD/MM
     assert "low-latency" in draft.body and "<b>" not in draft.body
     assert "Gurugram" in draft.body
+
+
+def test_normalize_url_ignores_cosmetic_differences_and_rejects_non_urls():
+    from alpha_engine.storage.repository import normalize_url
+
+    a = normalize_url("https://www.Example.com/jobs/1/?utm_source=rss&x=2#frag")
+    b = normalize_url("http://example.com/jobs/1?x=2")
+    assert a == b == "example.com/jobs/1?x=2"
+    # Anything that isn't an absolute URL has NO identity — returning a key here would collapse
+    # every placeholder-url row into one.
+    for junk in ("", "   ", "u", "not a url", "/relative/path"):
+        assert normalize_url(junk) == ""
+
+
+def _insight_for(session, external_id, score, item_type="tooling"):
+    raw = session.exec(select(RawItem).where(RawItem.external_id == external_id)).one()
+    session.add(Insight(raw_item_id=raw.id, relevance_score=score, category="Technical Analysis",
+                        item_type=item_type, region="Global", technical_summary="t",
+                        trader_impact="i", model_used="x"))
+
+
+def test_prune_collapses_same_item_ingested_twice(temp_db):
+    """One real item reached us twice under different ids and title formats — only URL identity can
+    catch that, since the title signature differs. The better-scored copy survives."""
+    with db.session_scope() as s:
+        repository.save_raw(s, [
+            RawItemDraft(source="rss", external_id="a1", url="https://ex.com/r/x/abc/",
+                         title="[QuantConnect/Lean] feature: register bloomberg fix", body="one"),
+            RawItemDraft(source="rss", external_id="a2", url="http://www.ex.com/r/x/abc?utm_source=feed",
+                         title="[QuantConnect Lean releases] 17921: feature: register", body="two"),
+            RawItemDraft(source="rss", external_id="a3", url="https://ex.com/other",
+                         title="A completely different story", body="different"),
+        ])
+    with db.session_scope() as s:
+        _insight_for(s, "a1", 9)
+        _insight_for(s, "a2", 7)   # same URL once normalized -> dropped
+        _insight_for(s, "a3", 8)
+    with db.session_scope() as s:
+        repository.prune_insights(s, alpha_keep=None, community_keep=None)
+    with db.session_scope() as s:
+        rows = s.exec(select(Insight, RawItem).join(RawItem, Insight.raw_item_id == RawItem.id)).all()
+        assert sorted(r.external_id for _, r in rows) == ["a1", "a3"]
+        assert {i.relevance_score for i, _ in rows} == {9, 8}  # the better copy survived
+
+
+def test_prune_collapses_identical_content_across_streams(temp_db):
+    """Identity is stream-independent: the same page reached by a community source and an alpha one
+    must not show up twice. (Which copy wins is a documented tie-break, so it isn't asserted.)"""
+    with db.session_scope() as s:
+        repository.save_raw(s, [
+            RawItemDraft(source="reddit", external_id="c1", url="https://ex.com/thread/9",
+                         title="[r/algotrading (top, week)] Databento is amazing", body="same"),
+            RawItemDraft(source="rss", external_id="c2", url="https://ex.com/thread/9",
+                         title="[r/algotrading] Databento is amazing", body="same"),
+        ])
+    with db.session_scope() as s:
+        _insight_for(s, "c1", 9)
+        _insight_for(s, "c2", 8)
+    with db.session_scope() as s:
+        repository.prune_insights(s, alpha_keep=None, community_keep=None)
+    with db.session_scope() as s:
+        assert len(s.exec(select(Insight)).all()) == 1
+
+
+def test_prune_does_not_collapse_rows_with_placeholder_urls(temp_db):
+    """The dangerous case: many drafts share a non-URL placeholder. Those must NOT be treated as
+    the same item, or a single prune would wipe the corpus."""
+    with db.session_scope() as s:
+        repository.save_raw(s, [
+            RawItemDraft(source="rss", external_id=f"p{n}", url="u",
+                         title=f"Distinct story about {w}", body=f"body {n}")
+            for n, w in enumerate(["latency", "options", "futures", "screeners"])
+        ])
+    with db.session_scope() as s:
+        for n in range(4):
+            _insight_for(s, f"p{n}", 8)
+    with db.session_scope() as s:
+        repository.prune_insights(s, alpha_keep=None, community_keep=None)
+    with db.session_scope() as s:
+        assert len(s.exec(select(Insight)).all()) == 4  # all survive

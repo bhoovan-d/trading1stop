@@ -41,6 +41,34 @@ def dedup_signature(title: str) -> str:
     return f"{prefix}|{' '.join(words)}"
 
 
+_TRACKING_PARAM = re.compile(r"(?:^|&)(?:utm_[^=&]*|source|ref|fbclid|gclid)=[^&]*", re.I)
+
+
+def normalize_url(url: str) -> str:
+    """A comparable form of a URL, so the same page fetched two ways compares equal.
+
+    Drops the scheme, a leading ``www.``, the fragment, tracking parameters, and a trailing slash.
+    Returns ``""`` for anything that isn't a real absolute URL — callers MUST treat empty as
+    "no identity", never as a key, or every placeholder-URL row would collapse into one.
+    """
+    raw = (url or "").strip()
+    if "://" not in raw:
+        return ""
+    _, _, rest = raw.partition("://")
+    rest = rest.split("#", 1)[0]
+    path, sep, query = rest.partition("?")
+    path = path.rstrip("/")  # /jobs/1/?x=2 and /jobs/1?x=2 are the same page
+    if sep:
+        query = _TRACKING_PARAM.sub("", query).lstrip("&")
+        rest = f"{path}?{query}" if query else path
+    else:
+        rest = path
+    if rest.lower().startswith("www."):
+        rest = rest[4:]
+    host, slash, tail = rest.partition("/")
+    return f"{host.lower()}{slash}{tail}".rstrip("/")
+
+
 def source_key_for(draft: RawItemDraft) -> str:
     return draft.source_key or f"adapter:{draft.source}"
 
@@ -337,6 +365,9 @@ def prune_insights(
     (never re-scored). Returns the number deleted.
     """
     deleted = 0
+    # Identity is stream-independent: the same page can arrive via an alpha source AND a community
+    # one, so this set spans both loops. (Alpha runs first, so it wins such a tie.)
+    seen_ids: set[str] = set()
     for is_community, keep in ((False, alpha_keep), (True, community_keep)):
         stream_quotas = {} if is_community else (quotas or {})
 
@@ -349,7 +380,7 @@ def prune_insights(
         rows = session.exec(
             _stream(
                 select(Insight.id, RawItem.title, Insight.item_type, Insight.region,
-                       RawItem.source_key)
+                       RawItem.source_key, RawItem.url, RawItem.content_hash)
                 .join(RawItem, Insight.raw_item_id == RawItem.id)
             ).order_by(Insight.relevance_score.desc(), Insight.created_at.desc())
         ).all()
@@ -359,7 +390,13 @@ def prune_insights(
         source_counts: dict[str, int] = {}
         overall = 0
         facet_counts = {f: 0 for f in stream_quotas}
-        for iid, title, item_type, region, source_key in rows:
+        for iid, title, item_type, region, source_key, url, content_hash in rows:
+            # Identity first: the SAME item can arrive under two ids (an adapter's title format
+            # changed, or a repo is covered by both the GitHub adapter and an RSS feed), which the
+            # title signature can't catch. Absolute — a facet quota can't rescue an exact duplicate.
+            identity = {k for k in (normalize_url(url), (content_hash or "").strip()) if k}
+            if identity & seen_ids:
+                continue
             sig = dedup_signature(title)
             if sig in seen_sigs:
                 continue  # a lower-scored duplicate of an app/subject we already kept
@@ -382,6 +419,7 @@ def prune_insights(
             if capped and not need_facet and source_counts.get(key, 0) >= per_source_keep:
                 continue
             seen_sigs.add(sig)
+            seen_ids |= identity
             keep_ids.add(iid)
             overall += 1
             if capped:
