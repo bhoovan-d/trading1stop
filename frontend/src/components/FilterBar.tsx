@@ -30,6 +30,9 @@ interface Props {
   hideItemType?: boolean;
 }
 
+/** Categories reachable from the nav; see the note where `categories` is built. */
+const ROUTED_CATEGORIES = new Set(["Quant Firms"]);
+
 // ── Timeframe presets (replace native date pickers) ────────────────────────────
 const DAY_MS = 86_400_000;
 const TIMEFRAMES = [
@@ -166,7 +169,10 @@ export function FilterBar({ values, meta, active, onChange, onApplyMany, onClear
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
-  const categories = meta?.categories ?? [];
+  // Categories that own a dedicated nav tab are left out of the pill row: that tab shows a richer
+  // view (Quant Firms adds cross-firm signals and drops raw postings), so offering the same
+  // category as a filter too is a second path to nearly the same result — under an identical label.
+  const categories = (meta?.categories ?? []).filter((c) => !ROUTED_CATEGORIES.has(c));
   const approaches = meta?.approaches ?? [];
   const itemTypes = meta?.item_types ?? [];
   // Holding period ("1-15 min" … "Multi-day") — distinct from the date presets below, which are

@@ -1,14 +1,19 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useMeta } from "../api/client";
 
+/** Navigation is structural — it says where you ARE, so it gets an underline, not a chip.
+ *  A filled coral chip means "a filter you chose" and belongs to the pills alone; when both rows
+ *  used the same chip they read as one control group (see DESIGN.md, Nav). */
 function NavItem({ to, label, end }: { to: string; label: string; end?: boolean }) {
   return (
     <NavLink
       to={to}
       end={end}
       className={({ isActive }) =>
-        `rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-          isActive ? "bg-accent-tint text-accent-dim" : "text-muted hover:text-ink"
+        `border-b-2 px-3 py-1.5 text-sm transition-colors ${
+          isActive
+            ? "border-accent font-semibold text-ink"
+            : "border-transparent font-medium text-muted hover:text-ink"
         }`
       }
     >

@@ -273,9 +273,14 @@ warm tint reads as light.
 ## 5. Components
 
 ### Buttons & Nav
-- **Nav:** Inter medium, sentence case (not tracked uppercase). Inactive = `muted`, hover
-  `ink`; active = `accent-tint` fill + `accent-dim` text, `md` radius. The header is white
-  with a hairline bottom border and scrolls with the page.
+- **Nav:** Inter, sentence case (not tracked uppercase). Inactive = `muted` medium, hover `ink`;
+  active = `ink` semibold over a 2px `accent` underline — **no fill, no radius**. The header is
+  white with a hairline bottom border and scrolls with the page.
+  **Navigation must never wear a filled chip.** A filled coral chip means *a filter you chose*; an
+  underline means *the section you're in*. The nav and the category pills sit in adjacent rows at
+  the same width, so when both used `accent-tint` + `accent-dim` they read as one control group —
+  and a label present in both (e.g. Quant Firms) looked like the same thing done twice. Categories
+  that own a nav tab are therefore also omitted from the pill row.
 - **Segmented Control:** the shared toggle for small mutually-exclusive sets (sort Top/Newest,
   minimum score, timeframe presets). A hairline-bordered `md`-radius container on `--shadow-sm`
   with a 2px inset; the active segment is a coral-tint inset pill (`accent-tint` fill +

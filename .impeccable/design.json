@@ -96,28 +96,83 @@
       }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "Newsletter masthead H1 and the 'The Alpha Feed' feed masthead. Fraunces 30px, opsz 64. Largest type." },
-      "headline": { "displayName": "Headline", "purpose": "Page titles (Community heading). Fraunces 24px, opsz 40." },
-      "title": { "displayName": "Title", "purpose": "Insight card + newsletter item titles. Fraunces 20px, opsz 34." },
-      "reading": { "displayName": "Reading", "purpose": "Newsletter long-form body. Fraunces 17px/1.7, <=68ch." },
-      "body": { "displayName": "Body", "purpose": "Card summaries and UI prose. Inter 14px, muted, <=68ch." },
-      "data": { "displayName": "Data", "purpose": "Scores, dates, sources, counts, category tags. Tabular mono 11px; the score number is the loudest data — mono 700 at 1.6rem/26px with a 9px '/ 10' denominator." },
-      "label": { "displayName": "Label", "purpose": "Kickers, section labels, filter micro-labels. Inter uppercase, tracked." }
+      "display": {
+        "displayName": "Display",
+        "purpose": "Newsletter masthead H1 and the 'The Alpha Feed' feed masthead. Fraunces 30px, opsz 64. Largest type."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page titles (Community heading). Fraunces 24px, opsz 40."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Insight card + newsletter item titles. Fraunces 20px, opsz 34."
+      },
+      "reading": {
+        "displayName": "Reading",
+        "purpose": "Newsletter long-form body. Fraunces 17px/1.7, <=68ch."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Card summaries and UI prose. Inter 14px, muted, <=68ch."
+      },
+      "data": {
+        "displayName": "Data",
+        "purpose": "Scores, dates, sources, counts, category tags. Tabular mono 11px; the score number is the loudest data — mono 700 at 1.6rem/26px with a 9px '/ 10' denominator."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Kickers, section labels, filter micro-labels. Inter uppercase, tracked."
+      }
     },
     "shadows": [
-      { "name": "shadow-sm", "value": "0 1px 2px oklch(0.26 0.012 60 / 0.05), 0 1px 3px oklch(0.26 0.012 60 / 0.05)", "purpose": "Inputs, pagination, brand tile — a hairline of lift." },
-      { "name": "shadow-md", "value": "0 2px 4px oklch(0.26 0.012 60 / 0.05), 0 6px 16px oklch(0.26 0.012 60 / 0.07)", "purpose": "Insight cards and the reading surface at rest." },
-      { "name": "shadow-lg", "value": "0 12px 32px oklch(0.26 0.012 60 / 0.1), 0 3px 8px oklch(0.26 0.012 60 / 0.06)", "purpose": "Card hover and popovers, paired with a 2px upward translate." }
+      {
+        "name": "shadow-sm",
+        "value": "0 1px 2px oklch(0.26 0.012 60 / 0.05), 0 1px 3px oklch(0.26 0.012 60 / 0.05)",
+        "purpose": "Inputs, pagination, brand tile — a hairline of lift."
+      },
+      {
+        "name": "shadow-md",
+        "value": "0 2px 4px oklch(0.26 0.012 60 / 0.05), 0 6px 16px oklch(0.26 0.012 60 / 0.07)",
+        "purpose": "Insight cards and the reading surface at rest."
+      },
+      {
+        "name": "shadow-lg",
+        "value": "0 12px 32px oklch(0.26 0.012 60 / 0.1), 0 3px 8px oklch(0.26 0.012 60 / 0.06)",
+        "purpose": "Card hover and popovers, paired with a 2px upward translate."
+      }
     ],
     "motion": [
-      { "name": "ease-out-quint", "value": "cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "Card entrance and hover lift; the system's signature easing." },
-      { "name": "transition-state", "value": "150ms", "purpose": "Color/border state changes on buttons, pills, nav, inputs." },
-      { "name": "transition-card", "value": "200ms", "purpose": "Insight card hover lift (shadow + transform)." },
-      { "name": "rise", "value": "@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }", "purpose": "Staggered card entrance, 0.4s, delay = min(index,12)*28ms per card." }
+      {
+        "name": "ease-out-quint",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Card entrance and hover lift; the system's signature easing."
+      },
+      {
+        "name": "transition-state",
+        "value": "150ms",
+        "purpose": "Color/border state changes on buttons, pills, nav, inputs."
+      },
+      {
+        "name": "transition-card",
+        "value": "200ms",
+        "purpose": "Insight card hover lift (shadow + transform)."
+      },
+      {
+        "name": "rise",
+        "value": "@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }",
+        "purpose": "Staggered card entrance, 0.4s, delay = min(index,12)*28ms per card."
+      }
     ],
     "breakpoints": [
-      { "name": "sm", "value": "640px" },
-      { "name": "content-max", "value": "56rem" }
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "content-max",
+        "value": "56rem"
+      }
     ]
   },
   "components": [
@@ -149,9 +204,9 @@
       "name": "Nav Item",
       "kind": "nav",
       "refersTo": "button-nav",
-      "description": "Inter sentence-case nav link; coral-tint pill when active.",
+      "description": "Inter sentence-case nav link; active = ink semibold over a 2px coral underline (never a filled chip — that treatment belongs to filter pills).",
       "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item ds-nav-active\" href=\"#\">Feed</a><a class=\"ds-nav-item\" href=\"#\">Community</a><a class=\"ds-nav-item\" href=\"#\">Newsletter</a></nav>",
-      "css": ".ds-nav { display: flex; gap: 4px; } .ds-nav-item { border-radius: 10px; padding: 6px 12px; font-family: 'Inter Variable', Inter, system-ui, sans-serif; font-size: 14px; font-weight: 500; color: var(--color-muted, oklch(0.44 0.012 60)); text-decoration: none; transition: color 150ms, background 150ms; } .ds-nav-item:hover { color: var(--color-ink, oklch(0.26 0.012 60)); } .ds-nav-active { background: var(--color-accent-tint, oklch(0.93 0.03 40)); color: var(--color-accent-dim, oklch(0.5 0.15 34)); }"
+      "css": ".ds-nav { display: flex; gap: 4px; } .ds-nav-item { border-bottom: 2px solid transparent; padding: 6px 12px; font-family: 'Inter Variable', Inter, system-ui, sans-serif; font-size: 14px; font-weight: 500; color: var(--color-muted, oklch(0.44 0.012 60)); text-decoration: none; transition: color 150ms, border-color 150ms; } .ds-nav-item:hover { color: var(--color-ink, oklch(0.26 0.012 60)); } .ds-nav-active { border-bottom-color: var(--color-accent, oklch(0.64 0.17 35)); font-weight: 600; color: var(--color-ink, oklch(0.26 0.012 60)); }"
     },
     {
       "name": "Brand Mark",
@@ -198,13 +253,41 @@
       "Fixed rem type scale (no clamp()); comfortable reading measures (<=68-70ch)."
     ],
     "rules": [
-      { "name": "The One Voice Rule", "body": "Coral appears on <=10% of any screen — brand mark, current selection, links, high scores. Use Deep Coral (accent-dim) for anything that is text on white. Its rarity is what makes a live signal read as live.", "section": "colors" },
-      { "name": "The Earned-Warmth Rule", "body": "Warmth comes from the accent, the serif, and the shadows — never from tinting the body toward cream. The paper stays at chroma ~0.006. If the background reads as beige/sand/parchment, the chroma is too high.", "section": "colors" },
-      { "name": "The Two-Reds Rule", "body": "The Deep Berry risk hue and the Poppy Coral accent must stay visibly distinct — berry is darker and cooler (hue 8 vs 35). Never let a risk chip drift toward the accent's brightness.", "section": "colors" },
-      { "name": "The Read-in-Serif Rule", "body": "Long-form newsletter prose is set in Fraunces at 17px/1.7 — it is meant to be read. UI micro-copy and card summaries stay in Inter; don't set working UI in the serif.", "section": "typography" },
-      { "name": "The Fixed-Scale Rule", "body": "No clamp(), no fluid headings. Sizes are a fixed rem ramp so a title in a narrow card and one in a wide column read at the same weight.", "section": "typography" },
-      { "name": "The Warm-Shadow Rule", "body": "All shadows are tinted with the ink hue (oklch(0.26 0.012 60)) at low alpha, never neutral black. A cool/black shadow on warm paper looks like dirt; the warm tint reads as light.", "section": "elevation" },
-      { "name": "The Lift-on-Intent Rule", "body": "Cards rest on shadow-md; hover raises to shadow-lg plus a 2px upward translate. Motion is on shadow and transform only — never on layout.", "section": "elevation" }
+      {
+        "name": "The One Voice Rule",
+        "body": "Coral appears on <=10% of any screen — brand mark, current selection, links, high scores. Use Deep Coral (accent-dim) for anything that is text on white. Its rarity is what makes a live signal read as live.",
+        "section": "colors"
+      },
+      {
+        "name": "The Earned-Warmth Rule",
+        "body": "Warmth comes from the accent, the serif, and the shadows — never from tinting the body toward cream. The paper stays at chroma ~0.006. If the background reads as beige/sand/parchment, the chroma is too high.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two-Reds Rule",
+        "body": "The Deep Berry risk hue and the Poppy Coral accent must stay visibly distinct — berry is darker and cooler (hue 8 vs 35). Never let a risk chip drift toward the accent's brightness.",
+        "section": "colors"
+      },
+      {
+        "name": "The Read-in-Serif Rule",
+        "body": "Long-form newsletter prose is set in Fraunces at 17px/1.7 — it is meant to be read. UI micro-copy and card summaries stay in Inter; don't set working UI in the serif.",
+        "section": "typography"
+      },
+      {
+        "name": "The Fixed-Scale Rule",
+        "body": "No clamp(), no fluid headings. Sizes are a fixed rem ramp so a title in a narrow card and one in a wide column read at the same weight.",
+        "section": "typography"
+      },
+      {
+        "name": "The Warm-Shadow Rule",
+        "body": "All shadows are tinted with the ink hue (oklch(0.26 0.012 60)) at low alpha, never neutral black. A cool/black shadow on warm paper looks like dirt; the warm tint reads as light.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Lift-on-Intent Rule",
+        "body": "Cards rest on shadow-md; hover raises to shadow-lg plus a 2px upward translate. Motion is on shadow and transform only — never on layout.",
+        "section": "elevation"
+      }
     ],
     "dos": [
       "Do keep the body background a true low-chroma off-white and carry warmth through the coral accent, the Fraunces serif, and warm shadows.",
