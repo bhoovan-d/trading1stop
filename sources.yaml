@@ -37,26 +37,49 @@ rss:
   # or `screen: markets` (tech media → keep trading/finance items). Screen keyword groups are
   # defined at the bottom of this block; flagship platform feeds run unscreened (already on-topic).
   feeds:
+    # MEASURED YIELD DRIVES THIS LIST. Every feed below has earned its place; anything that
+    # ingests items but never produces a kept insight is removed (same method as the Moneycontrol
+    # note further down). Measure with: items ingested per feed vs insights still live.
+    #
+    # Aug 2026 measurement over the full corpus (2,900 raw items) removed 9 mainstream-media feeds
+    # that had produced ZERO insights between them across 471 ingested items — YourStory (162),
+    # Entrackr (125), Economic Times Markets (61), Inc42 Fintech (56), TechCrunch Fintech (20),
+    # "Hacker News: quant" (20), ET Markets Stocks (12), Economic Times Startups (11),
+    # VentureBeat AI (11), Product Hunt (5). They publish general startup/business news, which the
+    # rubric correctly scores as noise, so they only ever cost LLM calls. Don't re-add general
+    # tech/startup media here: the brief is about trading, and a fintech funding round is not a
+    # trading insight unless it is a capital-markets venture.
+    #
+    # The same measurement RESTORED the specialist quant blogs below, which a6947bc had dropped in
+    # favour of that mainstream set. They are the highest-yield sources in the corpus by a wide
+    # margin (Quantitativo 55%, The Quant's Playbook 52%, Hudson & Thames 40%, Dean Markwick 30%,
+    # IBKR Quant 25%, Jane Street Tech Blog 20%) — a practitioner writing up a method is exactly
+    # what this brief is for.
+    #
     # ── Mainstream financial media (screen: ai) — mostly India-tagged by the LLM ──
-    - name: "Economic Times Markets"
-      url: "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms"
-      screen: ai
     - name: "Livemint Markets"
       url: "https://www.livemint.com/rss/markets"
       screen: ai
     - name: "CNBC Investing"
       url: "https://search.cnbc.com/rss/2.0/id/15839135/device/rss/rss.html"
       screen: ai
-    # ── Mainstream tech / fintech media (screen: markets) ──
-    - name: "TechCrunch Fintech"
-      url: "https://techcrunch.com/category/fintech/feed/"
-      screen: markets
-    - name: "VentureBeat AI"
-      url: "https://venturebeat.com/category/ai/feed/"
-      screen: markets
-    - name: "Inc42 Fintech"
-      url: "https://inc42.com/industry/fintech/feed/"
-      screen: markets
+    # ── Specialist quant / trading practitioner blogs (no screen — already on-topic) ──
+    - name: "Quantitativo"
+      url: "https://quantitativo.substack.com/feed"
+    - name: "The Quant's Playbook"
+      url: "https://www.quant-galore.com/feed"
+    - name: "Hudson & Thames"
+      url: "https://hudsonthames.org/feed/"
+    - name: "Dean Markwick"
+      url: "https://dm13450.github.io/feed.xml"
+    - name: "IBKR Quant"
+      url: "https://www.interactivebrokers.com/campus/category/ibkr-quant-news/feed/"
+    - name: "Jane Street Tech Blog"
+      url: "https://blog.janestreet.com/feed.xml"
+    - name: "Robot Wealth"
+      url: "https://robotwealth.com/feed/"
+    - name: "Databento"
+      url: "https://databento.com/blog/rss.xml"
     # ── Flagship platforms / high-signal (no screen — already on-topic) ──
     - name: "Zerodha Z-Connect"
       url: "https://zerodha.com/z-connect/feed"
@@ -65,31 +88,28 @@ rss:
     - name: "Alpaca Markets"
       url: "https://alpaca.markets/blog/feed"
     # Query-filtered at the source by topic — high signal, no screen needed.
+    # "Hacker News: quant" (q=quant finance) removed — 20 items, 0 kept. The algorithmic-trading
+    # query below is the one that lands; the quant-finance query returns academic/careers chatter.
     - name: "Hacker News: algorithmic trading"
       url: "https://hnrss.org/newest?q=algorithmic%20trading"
-    - name: "Hacker News: quant"
-      url: "https://hnrss.org/newest?q=quant%20finance"
     # ── Capital-markets & trading trade press — launches + funding (screen: markets) ──
     # (The TRADE / thetradenews.com omitted — its /feed/ returns no parseable entries. Finextra
     # Markets + Crunchbase News verified live. Add more capital-markets feeds the same way.)
     - name: "Finextra Markets"
       url: "https://www.finextra.com/rss/channel.aspx?channel=markets"
       screen: markets
+    - name: "Finextra Headlines"
+      url: "https://www.finextra.com/rss/headlines.aspx"
+      screen: markets
     - name: "Crunchbase News"
       url: "https://news.crunchbase.com/feed/"
       screen: markets
-    # ── Indian startup / fintech ecosystem — funding + new ventures (screen: markets) ──
-    # (Entrackr serves its feed at /rss, not /feed. Tracxn and Business Standard expose no
-    # parseable feed; YourStory's per-category feeds are empty, so the main feed is used.)
-    - name: "Entrackr"
-      url: "https://entrackr.com/rss"
-      screen: markets
-    - name: "YourStory"
-      url: "https://yourstory.com/feed"
-      screen: markets
-    - name: "Economic Times Startups"
-      url: "https://economictimes.indiatimes.com/tech/startups/rssfeeds/78570530.cms"
-      screen: markets
+    # NOTE: the Indian startup/fintech ecosystem feeds (Entrackr, YourStory, Economic Times
+    # Startups, Inc42) were REMOVED after measurement — 354 items ingested, 0 kept, ever. They
+    # cover general startup funding (D2C, logistics, lending), not capital markets, so CAPITAL
+    # MARKETS FOCUS in the prompt de-scores them to 1-4 by design. The /launches tab is fed by
+    # capital-markets venture news (Finextra, Crunchbase) instead. Don't re-add without a screen
+    # that admits only exchange/broker/trading-infra ventures.
     # NOTE: Moneycontrol Markets and ET Markets Stocks were trialled here to feed the India tab
     # and the Nifty/Bank Nifty axis, and REMOVED after measurement: 16 items ingested, 16 scored,
     # 0 kept. They publish daily price commentary ("Sensex, Nifty gain for third day", "Q1 Results
@@ -97,10 +117,8 @@ rss:
     # nothing. The index axis is populated by index-focused STRATEGY content (Zerodha, the India
     # subs, broker/tooling posts), not by market-wrap feeds. Don't re-add without a screen that
     # admits only method/strategy pieces.
-    # New product discovery — screened hard, since most of Product Hunt is off-topic.
-    - name: "Product Hunt"
-      url: "https://www.producthunt.com/feed"
-      screen: markets
+    # NOTE: Product Hunt was trialled for new-product discovery and REMOVED after measurement —
+    # 5 items, 0 kept. Even screened, its feed is overwhelmingly consumer apps.
 
   # Ingest screen keyword groups. Matched case-insensitively as whole WORDS (word boundaries),
   # so short tokens like "ai"/"nse" don't match inside "retail"/"sense". Include plural forms
