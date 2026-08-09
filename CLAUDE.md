@@ -28,6 +28,8 @@ uv run alpha-engine init-db
 uv run alpha-engine ingest-only --source rss        # fetch only, no LLM; -s repeatable
 uv run alpha-engine run-once                         # ingest → synthesize → store → newsletter
 uv run alpha-engine gen-newsletter [--date YYYY-MM-DD]
+uv run alpha-engine rescore --limit 100 [-y]         # re-score LIVE insights only; keeps curation
+uv run alpha-engine reclassify [-y]                  # re-score EVERYTHING; resurrects pruned items
 uv run alpha-engine schedule [--hours 24] [--no-run-now]
 uv run alpha-engine serve [--reload]                 # API on :8000 (+ built SPA in prod)
 uv run alpha-engine seed-demo [--count 24]           # insert fake insights (no LLM) for UI/dev
@@ -108,9 +110,16 @@ minimal renderer tuned to the newsletter format this app generates (not a genera
   structured-output enums, and normalized case-insensitively by the OpenAI-compat provider. The whole
   brief is pitched at **retail/independent algo-traders** — the prompt de-scores PhD-level academic
   content in favor of what a self-directed trader can actually use.
-- **Re-classifying history**: `alpha-engine reclassify` wipes insights + briefs (recreating those
-  tables so schema changes like `approaches` apply), resets every `RawItem.processed = False`, and
-  re-runs synthesis over the preserved raw content — no re-ingestion.
+- **Re-scoring history — two commands, and the difference matters.** `alpha-engine reclassify` wipes
+  insights + briefs (recreating those tables so schema changes like `approaches` apply), resets
+  **every** `RawItem.processed = False`, and re-runs synthesis over the preserved raw content — no
+  re-ingestion. Because it resets everything, it also **resurrects anything previously pruned from
+  the site**, so on a curated corpus it undoes the curation. Use it only when you want the whole
+  archive rebuilt (e.g. after a schema change). `alpha-engine rescore --limit N` is the scoped
+  version: `repository.requeue_scored_items` requeues only the raw items still backing a live
+  insight, oldest-scored first, so curation survives and only the scores change. It is batched and
+  resumable because free-tier rate limits pace it at roughly 30s/item; re-scored cards get a fresh
+  `created_at`, which is what makes repeated batches walk forward instead of looping.
 - **pytest is an optional dep** in `pyproject.toml [dev]`; `uv sync` prunes it. Always test with
   `uv run --extra dev pytest`.
 - **Windows file-lock**: a running `alpha-engine serve` locks `.venv/Scripts/alpha-engine.exe`, so
@@ -137,9 +146,28 @@ Three pieces around one Supabase Postgres DB (`DATABASE_URL`). See README "Deplo
   keep such imports lazy (as `newsletter/generate.py` does with `build_provider`/`generate_editorial`).
   `vercel.json` builds the frontend and rewrites `/api/*` → the function; `db.py` uses `NullPool` when
   `VERCEL` is set (Supabase transaction pooler).
-- **GitHub Actions** (`.github/workflows/daily.yml`) runs the pipeline once a day (`init-db` → `run-once`)
-  against Supabase — the pipeline is too long/rate-limited for a Vercel function. `api/app.py` (SPA-mount +
-  `init_db`) remains the **local/Docker** entrypoint; Vercel uses `api/index.py`.
+- **THE BUILT SPA LIVES IN THREE PLACES — keep them in sync.** `vercel.json`'s build command copies
+  `frontend/dist` to BOTH the repo root and `public/`, because with no `outputDirectory` set Vercel
+  treats `public/` as the output directory and it therefore **shadows the root copy**. A stale
+  committed `public/index.html` is served in preference to a freshly built one, and the symptom is
+  vicious: deploys succeed, the Python function updates (so the API reflects your changes), but the
+  HTML keeps pointing at an old bundle hash, so frontend changes silently never ship. If the site
+  looks unchanged after a green deploy, check which bundle `curl -s <site>/ | grep index-` reports
+  before debugging anything else.
+- **GitHub Actions** (`.github/workflows/daily.yml`) runs the pipeline **manually only** — there is
+  deliberately no `schedule:`; runs are dispatched from the Actions tab or the site's `/admin` page
+  via `src/alpha_engine/api/admin.py`, which is why the file name `daily.yml` is load-bearing. The
+  pipeline is too long/rate-limited for a Vercel function. `api/app.py` (SPA-mount + `init_db`)
+  remains the **local/Docker** entrypoint; Vercel uses `api/index.py`.
+- **Workflow expressions are substituted as text before the shell runs**, so a `${{ ... }}` written
+  inside a `#` comment in a `run:` block is still parsed — and an *empty* `${{ }}` makes the whole
+  file invalid. GitHub then reports it as a zero-job failed run on every push with no error inside
+  the run, and shows the workflow's name as its file path. `tests/test_admin.py` guards this.
+- **`/admin`** is token-gated on `ADMIN_TOKEN` (fails closed when unset) and needs `GITHUB_REPO` +
+  `GITHUB_DISPATCH_TOKEN` (fine-grained PAT, Actions: read & write) to dispatch runs. The LLM keys
+  are **GitHub Actions secrets**, not Vercel env vars — different stores, and the pipeline reads the
+  Actions ones. With no provider key configured, synthesis now exits non-zero rather than reporting
+  a green run that scored nothing.
 
 ## Design Context
 
