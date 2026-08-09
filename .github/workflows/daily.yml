@@ -20,6 +20,7 @@ on:
           - full
           - ingest
           - synthesize
+          - rescore
           - newsletter
           - reclassify
       sources:
@@ -74,6 +75,7 @@ jobs:
             full)       uv run alpha-engine run-once "${src_flags[@]}" ;;
             ingest)     uv run alpha-engine ingest-only "${src_flags[@]}" ;;
             synthesize) uv run alpha-engine synthesize ;;
+            rescore)    uv run alpha-engine rescore --limit 100 --yes ;;
             newsletter) uv run alpha-engine gen-newsletter ;;
             reclassify) uv run alpha-engine reclassify --yes ;;
             *) echo "Unknown mode: $mode" >&2; exit 1 ;;

@@ -553,6 +553,49 @@ def test_suspend_low_signal_sources_handles_naive_timestamps(temp_db):
     assert statuses == {"github:example/stale": "suspended", "github:example/fresh": "active"}
 
 
+def test_requeue_scored_items_leaves_pruned_content_alone(temp_db):
+    """The whole point of rescore vs reclassify: reclassify resets every raw item, so anything
+    pruned from the site returns. This must touch only raw items that still have an insight."""
+    with db.session_scope() as s:
+        repository.save_raw(s, _drafts())
+
+    run_synthesis(provider=CascadeProvider([FakeProvider()]))
+
+    with db.session_scope() as s:
+        kept = s.exec(select(Insight)).all()
+        assert len(kept) == 1                      # only KEEP cleared the bar
+        scored_raw_id = kept[0].raw_item_id
+        before = {r.id: r.processed for r in s.exec(select(RawItem)).all()}
+
+    with db.session_scope() as s:
+        assert repository.requeue_scored_items(s) == 1
+
+    with db.session_scope() as s:
+        assert s.exec(select(Insight)).all() == []          # the insight is gone, to be rebuilt
+        after = {r.id: r.processed for r in s.exec(select(RawItem)).all()}
+
+    # Only the scored item flipped back to unprocessed; the discarded one stays processed so it
+    # is not resurrected, which is exactly what reclassify would do wrong here.
+    assert after[scored_raw_id] is False
+    assert {i: p for i, p in after.items() if i != scored_raw_id} == \
+           {i: p for i, p in before.items() if i != scored_raw_id}
+
+
+def test_requeue_scored_items_honours_the_batch_limit(temp_db):
+    with db.session_scope() as s:
+        repository.save_raw(s, [
+            RawItemDraft(source="github", external_id=f"k{n}", url=f"u{n}", title=f"KEEP {n}")
+            for n in range(5)
+        ])
+    run_synthesis(provider=CascadeProvider([FakeProvider()]))
+
+    with db.session_scope() as s:
+        assert len(s.exec(select(Insight)).all()) == 5
+        assert repository.requeue_scored_items(s, limit=2) == 2
+    with db.session_scope() as s:
+        assert len(s.exec(select(Insight)).all()) == 3      # the rest are untouched
+
+
 def test_demand_signal_parser_requires_two_evidence_posts(temp_db):
     """A 'recurring' need must be evidenced by >=2 real posts — the whole premise is repetition,
     so a single-post or unresolvable cluster is dropped no matter what the model claimed."""

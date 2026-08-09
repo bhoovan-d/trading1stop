@@ -330,6 +330,36 @@ def requeue_ventures(session: Session) -> int:
     return len(ids)
 
 
+def requeue_scored_items(session: Session, limit: int | None = None) -> int:
+    """Requeue items that ALREADY have an insight, so the next synthesis re-scores just those.
+
+    This is the scoped alternative to ``reclassify``. Reclassify resets *every* RawItem, which
+    re-scores the whole archive — including everything deliberately pruned from the site, so a
+    curated set comes back as a full one. This touches only the raw items behind insights that
+    currently exist, so curation survives and the scores get honest.
+
+    Deletes each insight and marks its raw item unprocessed with a fresh ``fetched_at``, so
+    ``synthesize`` (newest-first, capped) picks them up. Oldest-scored first, and ``limit`` bounds
+    the batch — re-scoring is rate-limited, so it is meant to be run repeatedly until done.
+    """
+    stmt = select(Insight.id, Insight.raw_item_id).order_by(Insight.created_at)
+    if limit is not None:
+        stmt = stmt.limit(limit)
+    pairs = session.exec(stmt).all()
+    if not pairs:
+        return 0
+
+    insight_ids = [p[0] for p in pairs]
+    raw_ids = [p[1] for p in pairs]
+    session.execute(sa_delete(Insight).where(Insight.id.in_(insight_ids)))
+    session.execute(
+        sa_update(RawItem)
+        .where(RawItem.id.in_(raw_ids))
+        .values(processed=False, fetched_at=datetime.now(timezone.utc))
+    )
+    return len(raw_ids)
+
+
 def _facet_match(facet: str, item_type: str | None, region: str | None) -> bool:
     if facet == "hiring":
         return item_type == "hiring"

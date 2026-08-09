@@ -148,6 +148,47 @@ def synthesize_cmd(
     _fail_if_no_provider(stats)
 
 
+@app.command("rescore")
+def rescore(
+    limit: int = typer.Option(100, help="How many existing insights to re-score this batch."),
+    workers: int = typer.Option(None, help="Concurrent LLM workers (default: SYNTHESIS_WORKERS)."),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation prompt."),
+) -> None:
+    """Re-score the insights already on the site under the current prompt — curation preserved.
+
+    Use this instead of `reclassify` when the site has been curated. Reclassify resets EVERY raw
+    item, so anything previously pruned comes back; this only re-scores what is currently
+    published. Items that no longer clear the threshold are dropped, the rest get honest scores.
+
+    Rate limits make this slow, so it works in batches — run it repeatedly until `--limit` exceeds
+    the number of insights left to revisit.
+    """
+    from .db import session_scope
+    from .intelligence.synthesize import run_synthesis
+    from .storage import repository
+
+    init_db()
+    if not yes:
+        typer.confirm(
+            f"Re-score up to {limit} existing insight(s) with the current prompt? "
+            "They are removed and rebuilt from stored raw content.",
+            abort=True,
+        )
+
+    with session_scope() as session:
+        requeued = repository.requeue_scored_items(session, limit=limit)
+    logger.info(f"[rescore] requeued {requeued} item(s); re-running synthesis…")
+
+    # requeue_scored_items stamps fetched_at=now, and run_synthesis orders newest-first whenever a
+    # limit is set — so this batch is exactly the items just requeued, not the wider backlog.
+    stats = run_synthesis(max_workers=workers, limit=limit)
+    typer.echo(
+        f"rescored: requeued={requeued} insights={stats.insights} discarded={stats.discarded} "
+        f"failed={stats.failed} by_tier={stats.by_tier}"
+    )
+    _fail_if_no_provider(stats)
+
+
 @app.command("reclassify")
 def reclassify(
     workers: int = typer.Option(None, help="Concurrent LLM workers (default: SYNTHESIS_WORKERS)."),

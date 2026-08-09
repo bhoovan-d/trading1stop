@@ -72,7 +72,13 @@ export interface DemandSignal {
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
 // Must match RUN_MODES in src/alpha_engine/api/admin.py and the `mode` choices in daily.yml.
-export type RunMode = "full" | "ingest" | "synthesize" | "newsletter" | "reclassify";
+export type RunMode =
+  | "full"
+  | "ingest"
+  | "synthesize"
+  | "rescore"
+  | "newsletter"
+  | "reclassify";
 
 export interface AdminStatus {
   total_insights: number;

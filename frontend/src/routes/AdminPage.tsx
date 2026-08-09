@@ -14,11 +14,20 @@ const MODES: { value: RunMode; label: string; blurb: string }[] = [
   { value: "full", label: "Full run", blurb: "Ingest, score, prune, then rebuild the newsletter." },
   { value: "ingest", label: "Ingest only", blurb: "Fetch new raw items. No LLM calls, no spend." },
   { value: "synthesize", label: "Synthesize", blurb: "Score whatever is sitting unprocessed." },
+  {
+    value: "rescore",
+    label: "Re-score site",
+    blurb:
+      "Re-score 100 posts already on the site under the current prompt, oldest first. Curation is " +
+      "kept — unlike Reclassify, nothing you pruned comes back. Run it repeatedly to work through.",
+  },
   { value: "newsletter", label: "Newsletter", blurb: "Regenerate today's brief from the database." },
   {
     value: "reclassify",
     label: "Reclassify all",
-    blurb: "Wipe every insight and re-score the whole archive. Long, and spends a lot of LLM credit.",
+    blurb:
+      "Wipe every insight and re-score the ENTIRE archive, including posts pruned from the site — " +
+      "they will come back. Use Re-score site instead unless you want the full corpus rebuilt.",
   },
 ];
 

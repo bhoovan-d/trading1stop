@@ -35,7 +35,7 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 # Must match the `mode` choices in .github/workflows/daily.yml. Validated server-side so a client
 # can never dispatch a mode the workflow does not understand.
-RUN_MODES = ("full", "ingest", "synthesize", "newsletter", "reclassify")
+RUN_MODES = ("full", "ingest", "synthesize", "rescore", "newsletter", "reclassify")
 
 _GITHUB_API = "https://api.github.com"
 _TIMEOUT = 15
