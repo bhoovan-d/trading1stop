@@ -84,6 +84,7 @@ def test_synthesis_threshold_and_processing(temp_db):
     assert stats.discarded == 1     # DROP scored 3
     assert stats.failed == 1        # SKIP returned None
     assert stats.by_tier == {"fake:test": 2}
+    assert stats.provider_available is True  # a configured provider must not trip the no-scorer exit
 
     with db.session_scope() as s:
         insights = s.exec(select(Insight)).all()

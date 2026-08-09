@@ -112,6 +112,7 @@ def run_pipeline(
         "firm_signals": firm_count,
         "pruned": pruned,
         "suspended_sources": suspended_sources,
+        "provider_available": stats.provider_available,
     }
     logger.info(f"=== pipeline run done === {summary}")
     return summary

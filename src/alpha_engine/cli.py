@@ -18,6 +18,24 @@ app = typer.Typer(
 )
 
 
+def _fail_if_no_provider(stats) -> None:
+    """Exit non-zero when synthesis could not run for want of any provider key.
+
+    Scoring nothing because the backlog was empty is fine; scoring nothing because there is no
+    scorer configured is a broken deployment, and it must not report success — that is exactly how
+    the pipeline quietly stopped producing insights while every run stayed green.
+    """
+    if stats.provider_available:
+        return
+    typer.secho(
+        "ERROR: no LLM provider configured — nothing was scored. Set at least one of "
+        "CEREBRAS_API_KEY / GROQ_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY.",
+        fg=typer.colors.RED,
+        err=True,
+    )
+    raise typer.Exit(1)
+
+
 @app.command("init-db")
 def init_db_cmd() -> None:
     """Create the SQLite database and tables."""
@@ -127,6 +145,7 @@ def synthesize_cmd(
         f"insights={stats.insights} discarded={stats.discarded} failed={stats.failed} "
         f"by_tier={stats.by_tier}"
     )
+    _fail_if_no_provider(stats)
 
 
 @app.command("reclassify")
@@ -161,6 +180,7 @@ def reclassify(
         f"reclassified: insights={stats.insights} discarded={stats.discarded} "
         f"failed={stats.failed} by_tier={stats.by_tier}"
     )
+    _fail_if_no_provider(stats)
 
 
 @app.command("gen-newsletter")
@@ -190,6 +210,14 @@ def run_once(
         skip_newsletter=skip_newsletter,
     )
     typer.echo(summary)
+    if not skip_synthesis and not summary.get("provider_available", True):
+        typer.secho(
+            "ERROR: no LLM provider configured — ingestion ran, but nothing was scored. "
+            "Set at least one provider API key.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(1)
 
 
 @app.command("schedule")

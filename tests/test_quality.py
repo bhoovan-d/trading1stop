@@ -102,6 +102,17 @@ def test_prompt_names_the_observed_noise_patterns(phrase):
     assert phrase in SYSTEM_PROMPT
 
 
+def test_synthesis_reports_when_no_provider_is_configured():
+    """A run that cannot score anything must be distinguishable from one with nothing to score.
+    This exact silent no-op hid a dead pipeline behind green runs for two weeks."""
+    from alpha_engine.intelligence.provider import CascadeProvider
+    from alpha_engine.intelligence.synthesize import run_synthesis
+
+    stats = run_synthesis(provider=CascadeProvider([]))
+    assert stats.provider_available is False
+    assert stats.insights == 0
+
+
 def test_community_threshold_excludes_low_scoring_chatter():
     from alpha_engine.config import Settings
 

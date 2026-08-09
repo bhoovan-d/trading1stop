@@ -20,6 +20,11 @@ class SynthesisStats:
     discarded: int = 0
     failed: int = 0
     by_tier: dict[str, int] = field(default_factory=dict)
+    # False when NO provider key is configured at all, so callers can distinguish "scored nothing
+    # because the backlog was empty" from "could not score anything because there is no scorer".
+    # Without this the CLI exited 0 either way, and a pipeline that silently stopped producing
+    # insights looked identical to a healthy one for two weeks.
+    provider_available: bool = True
 
 
 def run_synthesis(
@@ -43,7 +48,11 @@ def run_synthesis(
     stats = SynthesisStats()
 
     if not getattr(provider, "available", True):
-        logger.warning("[synthesis] no LLM provider available — skipping synthesis.")
+        logger.error(
+            "[synthesis] no LLM provider available — nothing can be scored. Set at least one of "
+            "CEREBRAS_API_KEY / GROQ_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY."
+        )
+        stats.provider_available = False
         return stats
 
     alpha_threshold = settings.relevance_threshold
