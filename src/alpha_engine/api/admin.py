@@ -29,8 +29,7 @@ from sqlmodel import Session, select
 
 from ..config import get_settings
 from ..db import get_engine
-from ..models import DailyBrief, Insight, RawItem
-from ..storage import repository
+from ..models import DailyBrief, Insight, RawItem, SourceRegistry
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -69,7 +68,7 @@ class AdminStatusOut(BaseModel):
     total_raw_items: int
     unprocessed_raw_items: int
     latest_newsletter: str | None = None
-    sources: list[dict] = []
+    source_count: int = 0
     dispatch_configured: bool = False
 
 
@@ -147,7 +146,10 @@ def admin_status(session: Session = Depends(get_session)) -> AdminStatusOut:
             select(func.count()).select_from(RawItem).where(RawItem.processed == False)  # noqa: E712
         ).one(),
         latest_newsletter=latest_brief,
-        sources=repository.source_health(session),
+        # Deliberately a plain COUNT, not repository.source_health(): that runs a COUNT per
+        # registry row, and the N+1 was slow enough over the network to risk the function's 30s
+        # limit. This endpoint only needs the number.
+        source_count=session.exec(select(func.count()).select_from(SourceRegistry)).one(),
         dispatch_configured=bool(settings.github_repo and settings.github_dispatch_token),
     )
 

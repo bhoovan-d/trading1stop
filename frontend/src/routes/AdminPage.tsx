@@ -52,6 +52,7 @@ export function AdminPage() {
       token={token}
       status={status.data}
       loading={status.isLoading}
+      statusError={status.error as Error | null}
       onSignOut={() => {
         localStorage.removeItem(ADMIN_TOKEN_KEY);
         setToken("");
@@ -112,11 +113,13 @@ function Console({
   token,
   status,
   loading,
+  statusError,
   onSignOut,
 }: {
   token: string;
   status?: AdminStatus;
   loading: boolean;
+  statusError: Error | null;
   onSignOut: () => void;
 }) {
   const [mode, setMode] = useState<RunMode>("full");
@@ -156,7 +159,13 @@ function Console({
       <Panel title="Status">
         {loading ? (
           <div className="h-16 animate-pulse rounded-md bg-bg" />
-        ) : status ? (
+        ) : !status ? (
+          // Without this the panel rendered an empty box when the query failed, which looks
+          // identical to "still loading" and tells you nothing.
+          <p className="text-xs text-accent">
+            {statusError?.message ?? "Couldn't load status."}
+          </p>
+        ) : (
           <>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <Stat label="Insights" value={status.total_insights.toLocaleString()} />
@@ -171,7 +180,7 @@ function Console({
             <p className="mt-4 font-mono text-xs text-faint">
               Newest insight: {formatDate(status.latest_insight_at) || "none yet"}
               {" · "}
-              {status.sources.length} source{status.sources.length === 1 ? "" : "s"} tracked
+              {status.source_count} source{status.source_count === 1 ? "" : "s"} tracked
             </p>
             {!status.dispatch_configured && (
               <p className="mt-3 rounded-md border border-dashed border-border-strong px-3 py-2 text-xs text-accent">
@@ -180,7 +189,7 @@ function Console({
               </p>
             )}
           </>
-        ) : null}
+        )}
       </Panel>
 
       <Panel title="Run pipeline">

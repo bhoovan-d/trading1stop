@@ -122,6 +122,30 @@ def test_run_normalizes_valid_source_lists(client, monkeypatch):
     assert calls[0]["inputs"]["sources"] == "github,reddit"
 
 
+def test_workflow_has_no_empty_expressions():
+    """GitHub substitutes ${{ ... }} as text before the shell runs, so one inside a `#` comment is
+    still parsed -- and an EMPTY expression makes the whole workflow file invalid. That produces a
+    zero-job failed run on every push, with no error surfaced in the run itself."""
+    import re
+    from pathlib import Path
+
+    workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "daily.yml"
+    empty = re.findall(r"\$\{\{\s*\}\}", workflow.read_text(encoding="utf-8"))
+    assert not empty, f"empty ${{{{ }}}} expression(s) in daily.yml: {len(empty)}"
+
+
+def test_workflow_expressions_are_all_resolvable():
+    """Every expression must reference a real context, or the file is rejected at parse time."""
+    import re
+    from pathlib import Path
+
+    workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "daily.yml"
+    for expr in re.findall(r"\$\{\{(.*?)\}\}", workflow.read_text(encoding="utf-8")):
+        body = expr.strip()
+        assert body, "empty expression"
+        assert body.split(".")[0] in {"inputs", "secrets", "env", "github", "vars", "matrix"}, body
+
+
 def test_workflow_reads_inputs_from_env_not_interpolation():
     """Interpolating ${{ inputs.sources }} into the run script would be a shell-injection path."""
     from pathlib import Path

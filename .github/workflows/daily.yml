@@ -52,9 +52,11 @@ jobs:
       - name: Run pipeline (mode=${{ inputs.mode }})
         run: |
           set -euo pipefail
-          # Read the inputs from the environment, NOT via ${{ }} interpolation into the script:
-          # `sources` is free text that reaches here from /admin, and interpolating it would let a
-          # crafted value execute shell on the runner.
+          # Read the inputs from the environment, NOT by interpolating an expression into this
+          # script: `sources` is free text that reaches here from /admin, and interpolating it
+          # would let a crafted value execute shell on the runner.
+          # (Note: expressions are substituted as text before the shell runs, so writing one in a
+          # comment does not disarm it -- an empty expression here invalidates the whole workflow.)
           mode="$RUN_MODE"
           sources="$RUN_SOURCES"
 
