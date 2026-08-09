@@ -197,7 +197,10 @@ def record_adapter_failure(session: Session, adapter: str) -> None:
 
 def suspend_low_signal_sources(session: Session, days: int = 30) -> int:
     """Suspend stale automatically discovered resources; curated sources remain active."""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    # Naive cutoff: last_seen_at comes back from Postgres as TIMESTAMP WITHOUT TIME ZONE, and this
+    # comparison happens in Python (not SQL), so an aware cutoff raises TypeError. Same convention
+    # as routes.py / demand.py / firms.py.
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).replace(tzinfo=None)
     changed = 0
     for source in session.exec(
         select(SourceRegistry).where(SourceRegistry.status.in_(["candidate", "active"]))

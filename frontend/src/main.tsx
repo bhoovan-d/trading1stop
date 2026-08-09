@@ -6,6 +6,7 @@ import { Layout } from "./components/Layout";
 import { FeedPage } from "./routes/FeedPage";
 import { PainPointsPage } from "./routes/PainPointsPage";
 import { NewsletterPage } from "./routes/NewsletterPage";
+import { AdminPage } from "./routes/AdminPage";
 import "@fontsource-variable/fraunces";
 import "@fontsource-variable/inter";
 import "./index.css";
@@ -32,6 +33,8 @@ createRoot(document.getElementById("root")!).render(
             <Route path="pain-points" element={<PainPointsPage />} />
             <Route path="newsletter" element={<NewsletterPage />} />
             <Route path="newsletter/:date" element={<NewsletterPage />} />
+            {/* Operator console: token-gated, and deliberately absent from the nav. */}
+            <Route path="admin" element={<AdminPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

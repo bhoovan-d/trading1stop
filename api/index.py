@@ -21,7 +21,7 @@ _SRC = Path(__file__).resolve().parent.parent / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from fastapi import FastAPI, HTTPException, Request  # noqa: E402
+from fastapi import Depends, FastAPI, HTTPException, Request  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
 _router_import_error: str | None = None
@@ -30,6 +30,16 @@ try:
 except Exception as _exc:  # noqa: BLE001
     _router_import_error = repr(_exc)
     _router = None  # type: ignore[assignment]
+
+# Admin router is optional: if it fails to import, the read API must still serve.
+_admin_import_error: str | None = None
+try:
+    from alpha_engine.api.admin import require_admin  # noqa: E402
+    from alpha_engine.api.admin import router as _admin_router  # noqa: E402
+except Exception as _adm_exc:  # noqa: BLE001
+    _admin_import_error = repr(_adm_exc)
+    _admin_router = None  # type: ignore[assignment]
+    require_admin = None  # type: ignore[assignment]
 
 app = FastAPI(title="Trading Alpha Engine API", version="0.1.0")
 
@@ -48,7 +58,8 @@ app.add_middleware(ClearRootPathMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET"],
+    # POST is for /api/admin/run only; every admin route is gated by require_admin.
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -60,6 +71,15 @@ if _router is not None:
             app.router.routes.append(route)
     except Exception as _inc_exc:  # noqa: BLE001
         _include_router_error = repr(_inc_exc)
+
+# Same flattening for the admin routes, and registered here so they land BEFORE the
+# /{full_path:path} SPA catch-all defined at the bottom of this file.
+if _admin_router is not None:
+    try:
+        for route in _admin_router.routes:
+            app.router.routes.append(route)
+    except Exception as _adm_inc_exc:  # noqa: BLE001
+        _admin_import_error = repr(_adm_inc_exc)
 
 from fastapi.responses import HTMLResponse, FileResponse
 import os
@@ -85,15 +105,23 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/api/debug")
+@app.get("/api/debug", dependencies=[Depends(require_admin)] if require_admin else [])
 async def debug(request: Request) -> dict:
-    """Diagnostic endpoint — shows path, headers, registered routes, and router contents."""
+    """Diagnostic endpoint — shows path, headers, registered routes, and router contents.
+
+    Admin-gated: it exposes the full route table and import errors, which is reconnaissance, not
+    something to serve publicly. If the admin module failed to import there is no gate available,
+    so it refuses outright rather than falling open.
+    """
+    if require_admin is None:
+        raise HTTPException(status_code=503, detail="Admin module unavailable")
     app_routes = [{"type": type(r).__name__, "path": getattr(r, "path", "?")} for r in app.routes]
     router_routes = [{"type": type(r).__name__, "path": getattr(r, "path", "?")} for r in (_router.routes if _router else [])]
     return {
         "path": request.url.path,
         "import_error": _router_import_error,
         "include_router_error": _include_router_error,
+        "admin_import_error": _admin_import_error,
         "router_is_none": _router is None,
         "app_routes": app_routes,
         "router_routes_count": len(router_routes),

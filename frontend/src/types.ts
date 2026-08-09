@@ -69,3 +69,38 @@ export interface DemandSignal {
   evidence: DemandEvidence[];
   created_at: string;
 }
+
+// ── Admin ─────────────────────────────────────────────────────────────────────
+// Must match RUN_MODES in src/alpha_engine/api/admin.py and the `mode` choices in daily.yml.
+export type RunMode = "full" | "ingest" | "synthesize" | "newsletter" | "reclassify";
+
+export interface AdminSourceHealth {
+  source_key: string;
+  name: string;
+  adapter: string;
+  status: string;
+  url: string;
+  qualifying_insights_30d: number;
+  failure_count: number;
+  last_seen_at: string | null;
+}
+
+export interface AdminStatus {
+  total_insights: number;
+  latest_insight_at: string | null;
+  total_raw_items: number;
+  unprocessed_raw_items: number;
+  latest_newsletter: string | null;
+  sources: AdminSourceHealth[];
+  dispatch_configured: boolean;
+}
+
+export interface AdminRun {
+  id: number;
+  name: string | null;
+  status: string | null;
+  conclusion: string | null;
+  created_at: string | null;
+  html_url: string | null;
+  display_title: string | null;
+}

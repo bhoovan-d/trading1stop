@@ -91,8 +91,14 @@ def run_pipeline(
     if not skip_newsletter:
         newsletter_path = str(write_newsletter())
 
-    with session_scope() as session:
-        suspended_sources = repository.suspend_low_signal_sources(session)
+    # Housekeeping, and the last thing the run does — never let it cost us a run whose real work
+    # (ingest, synthesis, newsletter) has already committed.
+    suspended_sources = 0
+    try:
+        with session_scope() as session:
+            suspended_sources = repository.suspend_low_signal_sources(session)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(f"[sources] suspend pass failed (non-fatal): {exc}")
 
     summary = {
         "ingested": ingest_counts,

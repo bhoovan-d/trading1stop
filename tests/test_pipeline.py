@@ -529,6 +529,29 @@ def test_discovered_source_promotes_after_three_qualifying_insights(temp_db):
         assert health[0]["qualifying_insights_30d"] == 3
 
 
+def test_suspend_low_signal_sources_handles_naive_timestamps(temp_db):
+    """Regression: last_seen_at comes back from the DB timezone-naive, and the staleness check runs
+    in Python. An aware cutoff raised TypeError here and killed the whole run at its last step."""
+    from datetime import datetime, timedelta, timezone
+
+    stale = (datetime.now(timezone.utc) - timedelta(days=90)).replace(tzinfo=None)
+    fresh = datetime.now(timezone.utc).replace(tzinfo=None)
+    with db.session_scope() as s:
+        s.add(SourceRegistry(source_key="github:example/stale", adapter="github", name="stale",
+                             url="https://github.com/example/stale", target="example/stale",
+                             status="active", first_seen_at=stale, last_seen_at=stale))
+        s.add(SourceRegistry(source_key="github:example/fresh", adapter="github", name="fresh",
+                             url="https://github.com/example/fresh", target="example/fresh",
+                             status="active", first_seen_at=stale, last_seen_at=fresh))
+
+    with db.session_scope() as s:
+        assert repository.suspend_low_signal_sources(s) == 1
+
+    with db.session_scope() as s:
+        statuses = {r.source_key: r.status for r in s.exec(select(SourceRegistry)).all()}
+    assert statuses == {"github:example/stale": "suspended", "github:example/fresh": "active"}
+
+
 def test_demand_signal_parser_requires_two_evidence_posts(temp_db):
     """A 'recurring' need must be evidenced by >=2 real posts — the whole premise is repetition,
     so a single-post or unresolvable cluster is dropped no matter what the model claimed."""

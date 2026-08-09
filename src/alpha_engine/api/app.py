@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from ..config import ROOT_DIR, get_settings
 from ..db import init_db
+from .admin import router as admin_router
 from .routes import router
 
 settings = get_settings()
@@ -36,6 +37,8 @@ def health() -> dict[str, str]:
 
 
 app.include_router(router)
+# Every route here is gated by require_admin; with ADMIN_TOKEN unset they all refuse.
+app.include_router(admin_router)
 
 # Serve the built SPA in production (frontend/dist). During dev the Vite server proxies /api.
 _DIST = ROOT_DIR / "frontend" / "dist"

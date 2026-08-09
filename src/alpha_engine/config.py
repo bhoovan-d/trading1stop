@@ -44,8 +44,10 @@ class Settings(BaseSettings):
     llm_provider_chain: str = "cerebras,groq,gemini,anthropic"
     relevance_threshold: int = 7
     # Community sources (reddit/forums) are discussion, not shipped engineering, so they're
-    # held to a lower bar than the alpha stream (GitHub / research / MCP).
-    community_relevance_threshold: int = 5
+    # held to a lower bar than the alpha stream (GitHub / research / MCP) — but not a free pass:
+    # at 5 the feed filled with "what are you guys using" polls and beginner indicator questions.
+    # The prompt's exclusion list is what pushes those to 1-4; this is the backstop.
+    community_relevance_threshold: int = 6
     # New-venture news (funding/launch/early_stage) is scored on venture significance, not day-one
     # trader usability, so it's held to its own bar rather than the stricter alpha threshold.
     venture_relevance_threshold: int = 6
@@ -129,6 +131,15 @@ class Settings(BaseSettings):
     stocktwits_enabled: bool = False
     stocktwits_username: str | None = None
     stocktwits_password: str | None = None
+
+    # Admin section (/admin). The pipeline is far too long for a serverless function, so the admin
+    # page does not run it — it dispatches the GitHub Actions workflow that already does. Leaving
+    # admin_token unset disables every admin endpoint (fail closed), which is the default.
+    admin_token: str | None = None
+    github_repo: str | None = None            # "owner/name" — which repo to dispatch against
+    github_dispatch_token: str | None = None  # PAT with Actions: read & write on that repo
+    github_workflow_file: str = "daily.yml"
+    github_workflow_ref: str = "main"
 
     # Tunables
     database_url: str | None = None

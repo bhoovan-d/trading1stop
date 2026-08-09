@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from itertools import islice
 
@@ -12,6 +13,13 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..config import GithubSources, Settings
 from .base import RawItemDraft, Source, truncate
+
+
+# Conventional-commit prefixes that are unambiguously housekeeping. These can never become a card,
+# so dropping them at ingest saves an LLM call each rather than paying to have them scored 1-4.
+# `fix:` and `feat:` are deliberately NOT here — some fixes and every feature can matter, and that
+# judgement belongs to the model.
+_NOISE_COMMIT = re.compile(r"^(chore|docs|test|tests|ci|build|style|refactor|perf)(\([^)]*\))?!?:", re.I)
 
 
 def _client(settings: Settings) -> Github:
@@ -59,6 +67,8 @@ class GithubSource(Source):
                 elif data.author is not None:
                     author = data.author.name
                 title = message.splitlines()[0][:200] if message else commit.sha[:12]
+                if _NOISE_COMMIT.match(title):
+                    continue
                 yield RawItemDraft(
                     source=self.source,
                     source_key=f"github:{full_name}",

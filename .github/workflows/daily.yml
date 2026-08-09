@@ -1,14 +1,31 @@
-name: Daily pipeline
+name: Pipeline (manual)
 
-# Runs the full ingest → synthesize → newsletter pipeline once a day against Supabase.
+# Runs the ingest → synthesize → newsletter pipeline against Supabase, on demand.
 # This lives on GitHub Actions (not Vercel) because a real run takes several minutes with
 # rate-limited free LLM tiers — well past Vercel's serverless function time limit. Vercel only
-# serves the SPA + read API; this job is what populates the database each day.
+# serves the SPA + read API; this job is what populates the database.
+#
+# There is deliberately NO schedule: runs are triggered manually, either from the Actions tab or
+# from the site's /admin page (which dispatches this workflow through the GitHub API). The file
+# name is load-bearing — src/alpha_engine/api/admin.py dispatches against `daily.yml`.
 
 on:
-  schedule:
-    - cron: "0 6 * * *" # 06:00 UTC daily
-  workflow_dispatch: {} # allow manual runs from the Actions tab
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Which phases to run"
+        type: choice
+        default: full
+        options:
+          - full
+          - ingest
+          - synthesize
+          - newsletter
+          - reclassify
+      sources:
+        description: "Optional comma-separated sources (ingest/full only), e.g. github,reddit"
+        type: string
+        default: ""
 
 concurrency:
   group: daily-pipeline
@@ -32,9 +49,36 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-      - name: Run pipeline (ingest → synthesize → newsletter)
-        run: uv run alpha-engine run-once
+      - name: Run pipeline (mode=${{ inputs.mode }})
+        run: |
+          set -euo pipefail
+          # Read the inputs from the environment, NOT via ${{ }} interpolation into the script:
+          # `sources` is free text that reaches here from /admin, and interpolating it would let a
+          # crafted value execute shell on the runner.
+          mode="$RUN_MODE"
+          sources="$RUN_SOURCES"
+
+          # Turn "github,reddit" into repeated -s flags; empty means "every configured source".
+          src_flags=()
+          if [ -n "$sources" ]; then
+            IFS=',' read -ra parts <<< "$sources"
+            for p in "${parts[@]}"; do
+              p="$(echo "$p" | xargs)"   # trim
+              [ -n "$p" ] && src_flags+=(-s "$p")
+            done
+          fi
+
+          case "$mode" in
+            full)       uv run alpha-engine run-once "${src_flags[@]}" ;;
+            ingest)     uv run alpha-engine ingest-only "${src_flags[@]}" ;;
+            synthesize) uv run alpha-engine synthesize ;;
+            newsletter) uv run alpha-engine gen-newsletter ;;
+            reclassify) uv run alpha-engine reclassify --yes ;;
+            *) echo "Unknown mode: $mode" >&2; exit 1 ;;
+          esac
         env:
+          RUN_MODE: ${{ inputs.mode }}
+          RUN_SOURCES: ${{ inputs.sources }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           # LLM providers (configure whichever keys you have; the cascade skips unset ones)
           CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}

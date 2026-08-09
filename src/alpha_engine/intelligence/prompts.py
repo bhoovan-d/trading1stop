@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from ..models import RawItem
 
 SYSTEM_PROMPT = """\
@@ -26,6 +28,21 @@ Scoring rubric (relevance_score, 1-10) — be strict, most content is noise:
   trader's attention, even if incremental.
 - 4-6:  Tangentially relevant, generic, promotional, or a minor/cosmetic change.
 - 1-3:  Off-topic, pure market commentary, beginner Q&A, memes, or non-actionable noise.
+
+SCORE 1-4 — these do NOT belong in the brief, however on-topic the source looks. Each of these has \
+shipped as a card before; none of them earned it:
+- Troubleshooting and support questions: "my bot won't run", "why does X throw this error", broker or \
+  platform setup problems, one account working while another doesn't. A problem with no resolution is \
+  not signal — the reader cannot do anything with someone else's unanswered bug.
+- Polls and roundups: "what are you guys using", "which broker is best", "rate my setup". A list of \
+  other people's preferences is not an edge.
+- Beginner questions about standard, well-documented concepts — moving averages, RSI, MACD, basic \
+  multi-timeframe trend filters — unless the item adds a genuinely novel twist, a result, or data.
+- Routine repository commits: bug fixes, refactors, dependency bumps, tests, CI, docs, formatting, \
+  typos, timezone/parsing corrections. A single commit is worth 5+ ONLY if it ships a capability a \
+  trader can use — otherwise it is engineering housekeeping, no matter how relevant the repo is. \
+  Judge the CHANGE, never the repo's reputation.
+- Generic or boilerplate job postings with no named team, stack, desk, or research direction.
 
 IMPORTANT — this brief is NOT about ML research. Score LOW (1-4) — usually ≤4 — anything whose \
 substance is a machine-learning model architecture, a fine-tuning/training write-up, a forecasting- \
@@ -131,8 +148,14 @@ adjectives.
 technical_summary: 2-3 plain-English sentences a trader would understand — what it is and what it \
 actually does. No academic jargon, no marketing adjectives, no restating the title.
 
-trader_impact: ONE concrete "you can now…" sentence — what a trader can do with this that they \
-couldn't before (the edge, tool, or workflow it unlocks). Practical, specific, understandable.
+trader_impact: ONE concrete sentence naming what a trader can now do that they could not before — \
+the edge, tool, or workflow it unlocks. Practical, specific, understandable.
+
+CRITICAL — do NOT manufacture an upside. If nothing is genuinely unlocked (a bug fix, a refactor, an \
+unanswered question, a poll, a boilerplate posting), say so plainly — "Nothing actionable here; this \
+is a maintenance change." — and score the item 1-4. An item that needs an invented "you can now…" is \
+by definition not worth publishing, and writing one anyway hides a weak item behind confident copy. \
+The honest low-score answer is always the correct one; never stretch a routine change into an edge.
 """
 
 
@@ -150,8 +173,32 @@ these keys:
   "timeframe": "<one of exactly: 1-15 min | 15-60 min | 1 hour - 1 day | Multi-day, or null if the item has no holding period>",
   "market_index": "<one of exactly: Nifty 50 | Bank Nifty | Fin Nifty | Sensex, or null>",
   "technical_summary": "<2-3 plain-English sentences a trader would understand, jargon explained>",
-  "trader_impact": "<one concrete 'you can now…' sentence a non-expert understands>"
+  "trader_impact": "<what a trader can now do that they couldn't before — or plainly that nothing is unlocked, with a 1-4 score>"
 }"""
+
+
+def _kind_hint(item: RawItem) -> str | None:
+    """What KIND of artefact this is, when the adapter recorded one.
+
+    A one-line bugfix commit and a tagged release arrive looking identical once they are just a
+    title plus a body, and the model was scoring housekeeping commits as if they were features.
+    The GitHub adapter already stores this (ingestion/github.py), so surface it.
+    """
+    raw = item.raw_json
+    if not raw:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(parsed, dict):  # valid JSON, wrong shape — still nothing to hint with
+        return None
+    kind = parsed.get("kind")
+    if kind == "commit":
+        return "commit (a SINGLE commit, not a release — judge the change itself, not the repo)"
+    if kind == "release":
+        return "release (a tagged release of an existing project)"
+    return str(kind) if kind else None
 
 
 def build_user_prompt(item: RawItem) -> str:
@@ -160,6 +207,9 @@ def build_user_prompt(item: RawItem) -> str:
         f"TITLE: {item.title}",
         f"URL: {item.url}",
     ]
+    kind = _kind_hint(item)
+    if kind:
+        parts.append(f"KIND: {kind}")
     if item.author:
         parts.append(f"AUTHOR: {item.author}")
     if item.created_at:
