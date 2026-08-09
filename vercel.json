@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
 
-  "buildCommand": "npm run build && cp -r frontend/dist/. .",
+  "buildCommand": "npm run build && cp -r frontend/dist/. . && cp -r frontend/dist/. public/",
 
   "functions": {
     "api/index.py": {
